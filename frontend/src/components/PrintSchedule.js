@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
-import { Download, X, Loader2, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Printer, X, Loader2, ChevronLeft, ChevronRight } from 'lucide-react';
 import { jsPDF } from 'jspdf';
 import { startOfWeek, addDays, addWeeks, format, getISOWeek, parseISO, differenceInCalendarDays, differenceInCalendarWeeks, getDate, isSameDay } from 'date-fns';
 import { da, enUS } from 'date-fns/locale';
@@ -224,16 +224,9 @@ export const PrintSchedule = ({ onClose }) => {
       doc.text('MediTrack', margin, pageHeight - 10);
       doc.text(language === 'da' ? 'Hold dette skema opdateret' : 'Keep this schedule updated', pageWidth - margin, pageHeight - 10, { align: 'right' });
 
-      const fileName = `ugeskema_uge${weekNumber}_${(user?.name || 'medicin').replace(/\s+/g, '_')}.pdf`;
       const pdfBlob = doc.output('blob');
-      const url = URL.createObjectURL(pdfBlob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = fileName;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      URL.revokeObjectURL(url);
+      const url = URL.createObjectURL(new Blob([pdfBlob], { type: 'application/pdf' }));
+      window.open(url, '_blank');
     } catch (err) {
       console.error('PDF generation error:', err);
       alert((language === 'da' ? 'Kunne ikke generere PDF: ' : 'Could not generate PDF: ') + err.message);
@@ -257,7 +250,7 @@ export const PrintSchedule = ({ onClose }) => {
               className="flex items-center gap-1.5 px-3 py-2 sm:px-4 sm:py-2 bg-emerald-500 text-white text-sm rounded-lg hover:bg-emerald-600 transition-colors disabled:opacity-50"
               data-testid="download-pdf-btn"
             >
-              {generating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
+              {generating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Printer className="w-4 h-4" />}
               <span className="hidden xs:inline">PDF</span>
             </button>
             <button
