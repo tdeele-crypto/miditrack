@@ -438,8 +438,9 @@ export const Schedule = () => {
       
       {/* Add/Edit Schedule Form Modal */}
       {showForm && (
-        <div className="fixed inset-0 bg-black/70 flex items-center justify-center p-4 z-50 overflow-y-auto" data-testid="schedule-form-modal">
-          <div className="glass-card w-full max-w-md p-6 animate-fade-in my-8">
+        <div className="fixed inset-0 bg-black/70 z-50 overflow-y-auto" data-testid="schedule-form-modal">
+          <div className="min-h-full flex items-start justify-center p-4 pt-6 pb-8">
+            <div className="glass-card w-full max-w-md p-6 animate-fade-in">
             <div className="flex items-center justify-between mb-6">
               <h2 className="text-xl font-semibold">
                 {editingEntry ? (language === 'da' ? 'Rediger dosis' : 'Edit Dose') : t('addToSchedule')}
@@ -579,6 +580,7 @@ export const Schedule = () => {
                 </button>
               </div>
             </form>
+          </div>
           </div>
         </div>
       )}
