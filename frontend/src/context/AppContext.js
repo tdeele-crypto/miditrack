@@ -18,7 +18,6 @@ export const AppProvider = ({ children }) => {
   const [medicines, setMedicines] = useState([]);
   const [timeSlots, setTimeSlots] = useState([]);
   const [schedule, setSchedule] = useState([]);
-  const [logs, setLogs] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
@@ -251,48 +250,6 @@ export const AppProvider = ({ children }) => {
     }
   };
 
-  // Log functions
-  const fetchLogs = useCallback(async (date) => {
-    if (!user) return;
-    try {
-      const res = await axios.get(`${API_URL}/api/log/${user.user_id}`, {
-        params: date ? { date } : {}
-      });
-      setLogs(res.data);
-    } catch (err) {
-      console.error('Failed to fetch logs');
-    }
-  }, [user]);
-
-  const takeMedicine = async (medicineId, slotId, date) => {
-    if (!user) return;
-    try {
-      const res = await axios.post(`${API_URL}/api/log/${user.user_id}`, {
-        medicine_id: medicineId,
-        slot_id: slotId,
-        date
-      });
-      await fetchLogs(date);
-      await fetchMedicines();
-      return res.data;
-    } catch (err) {
-      setError(err.response?.data?.detail || 'Failed to log medicine');
-      throw err;
-    }
-  };
-
-  const undoTakeMedicine = async (logId, date) => {
-    if (!user) return;
-    try {
-      await axios.delete(`${API_URL}/api/log/${user.user_id}/${logId}`);
-      await fetchLogs(date);
-      await fetchMedicines();
-    } catch (err) {
-      setError(err.response?.data?.detail || 'Failed to undo');
-      throw err;
-    }
-  };
-
   // Load data when user logs in
   useEffect(() => {
     if (user) {
@@ -308,7 +265,6 @@ export const AppProvider = ({ children }) => {
     medicines,
     timeSlots,
     schedule,
-    logs,
     loading,
     error,
     setError,
@@ -327,10 +283,7 @@ export const AppProvider = ({ children }) => {
     fetchSchedule,
     addScheduleEntry,
     deleteScheduleEntry,
-    updateScheduleEntry,
-    fetchLogs,
-    takeMedicine,
-    undoTakeMedicine
+    updateScheduleEntry
   };
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;

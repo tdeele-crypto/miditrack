@@ -95,8 +95,10 @@ export const PrintSchedule = ({ onClose }) => {
           body {
             font-family: 'Segoe UI', Arial, sans-serif;
             font-size: 11px;
-            color: #1a1a1a;
-            background: white;
+            color: #f4f4f5;
+            background: #0a0a0f;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
           }
           .header {
             display: flex;
@@ -109,15 +111,15 @@ export const PrintSchedule = ({ onClose }) => {
           .title {
             font-size: 18px;
             font-weight: 700;
-            color: #1a1a1a;
+            color: #f4f4f5;
           }
           .user-name {
             font-size: 14px;
-            color: #666;
+            color: #a1a1aa;
           }
           .print-date {
             font-size: 10px;
-            color: #999;
+            color: #71717a;
           }
           table {
             width: 100%;
@@ -125,15 +127,15 @@ export const PrintSchedule = ({ onClose }) => {
             margin-bottom: 15px;
           }
           th, td {
-            border: 1px solid #e0e0e0;
+            border: 1px solid #27272a;
             padding: 6px 8px;
             text-align: center;
             vertical-align: middle;
           }
           th {
-            background: #f8f9fa;
+            background: #1a1a24;
             font-weight: 600;
-            color: #333;
+            color: #f4f4f5;
           }
           .slot-header {
             background: #10b981 !important;
@@ -145,19 +147,22 @@ export const PrintSchedule = ({ onClose }) => {
           .medicine-name {
             text-align: left;
             font-weight: 600;
-            background: #fafafa;
+            background: #12121a;
+            color: #f4f4f5;
           }
           .medicine-dosage {
             font-size: 9px;
-            color: #666;
+            color: #a1a1aa;
             font-weight: normal;
           }
           .dose-cell {
             min-width: 60px;
+            background: #12121a;
           }
           .dose-pills {
             font-weight: 600;
             font-size: 12px;
+            color: #f4f4f5;
           }
           .dose-mg {
             font-size: 9px;
@@ -165,7 +170,7 @@ export const PrintSchedule = ({ onClose }) => {
             font-weight: 500;
           }
           .empty-dose {
-            color: #ccc;
+            color: #3f3f46;
           }
           .day-header {
             font-weight: 600;
@@ -174,9 +179,9 @@ export const PrintSchedule = ({ onClose }) => {
           .footer {
             margin-top: 20px;
             padding-top: 10px;
-            border-top: 1px solid #e0e0e0;
+            border-top: 1px solid #27272a;
             font-size: 9px;
-            color: #999;
+            color: #71717a;
             display: flex;
             justify-content: space-between;
           }

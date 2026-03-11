@@ -1,16 +1,14 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { format, addDays, startOfWeek, isSameDay } from 'date-fns';
 import { da, enUS } from 'date-fns/locale';
 import { 
-  Check, 
   Clock, 
   ChevronLeft, 
   ChevronRight,
   AlertTriangle,
-  ThumbsUp,
-  Undo2,
-  Printer
+  Printer,
+  Pill
 } from 'lucide-react';
 import { PrintSchedule } from './PrintSchedule';
 
@@ -22,50 +20,49 @@ const DayNames = {
 const DayKeys = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'];
 
 export const Dashboard = () => {
-  const { 
-    t, language, user, medicines, timeSlots, schedule, logs, 
-    fetchLogs, takeMedicine, undoTakeMedicine 
-  } = useApp();
+  const { t, language, user, medicines, timeSlots, schedule } = useApp();
   
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [weekStart, setWeekStart] = useState(startOfWeek(new Date(), { weekStartsOn: 1 }));
   const [showPrintSchedule, setShowPrintSchedule] = useState(false);
   const locale = language === 'da' ? da : enUS;
   
-  const dateString = format(selectedDate, 'yyyy-MM-dd');
   const dayKey = DayKeys[selectedDate.getDay()];
   
-  useEffect(() => {
-    fetchLogs(dateString);
-  }, [dateString, fetchLogs]);
-  
-  // Get today's schedule
+  const extractMg = (dosageStr) => {
+    if (!dosageStr) return null;
+    const match = dosageStr.match(/(\d+(?:[.,]\d+)?)\s*(mg|g|mcg|µg)/i);
+    if (!match) return null;
+    let value = parseFloat(match[1].replace(',', '.'));
+    const unit = match[2].toLowerCase();
+    if (unit === 'g') value *= 1000;
+    if (unit === 'mcg' || unit === 'µg') value /= 1000;
+    return value;
+  };
+
+  // Get today's schedule - just show what's planned
   const todaySchedule = timeSlots.map(slot => {
     const entries = schedule.filter(s => {
-      // Check if this slot has a dose for today
       const dayDoses = s.day_doses || {};
       return s.slot_id === slot.slot_id && dayDoses[dayKey];
     });
     
     const medicines_for_slot = entries.map(entry => {
       const medicine = medicines.find(m => m.medicine_id === entry.medicine_id);
-      const log = logs.find(l => 
-        l.medicine_id === entry.medicine_id && 
-        l.slot_id === slot.slot_id &&
-        l.date === dateString
-      );
-      
       const dayDose = entry.day_doses?.[dayKey] || { whole: 1, half: 0 };
       const pillsWhole = dayDose.whole || 0;
       const pillsHalf = dayDose.half || 0;
+      const totalPills = pillsWhole + pillsHalf * 0.5;
+      const mgPerPill = extractMg(medicine?.dosage || entry.medicine_dosage);
+      const totalMg = mgPerPill ? mgPerPill * totalPills : null;
       
       return {
         ...entry,
         medicine,
-        taken: !!log,
-        log_id: log?.log_id,
         pills_whole: pillsWhole,
-        pills_half: pillsHalf
+        pills_half: pillsHalf,
+        total_pills: totalPills,
+        total_mg: totalMg
       };
     }).filter(e => e.medicine);
     
@@ -75,39 +72,16 @@ export const Dashboard = () => {
     };
   }).filter(slot => slot.medicines.length > 0);
   
-  const handleTakeMedicine = async (medicineId, slotId) => {
-    try {
-      await takeMedicine(medicineId, slotId, dateString);
-    } catch (err) {
-      console.error(err);
-    }
-  };
-  
-  const handleUndo = async (logId) => {
-    try {
-      await undoTakeMedicine(logId, dateString);
-    } catch (err) {
-      console.error(err);
-    }
-  };
-  
-  const getStatusIcon = (status) => {
-    switch (status) {
-      case 'green':
-        return <ThumbsUp className="w-4 h-4 text-emerald-400" />;
-      case 'yellow':
-        return <AlertTriangle className="w-4 h-4 text-amber-400" />;
-      case 'red':
-        return <AlertTriangle className="w-4 h-4 text-red-400" />;
-      default:
-        return null;
-    }
-  };
-  
   const weekDays = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
   
   const goToPrevWeek = () => setWeekStart(addDays(weekStart, -7));
   const goToNextWeek = () => setWeekStart(addDays(weekStart, 7));
+
+  const formatPillsDisplay = (whole, half) => {
+    if (whole > 0 && half > 0) return `${whole}½`;
+    if (half > 0) return `½`;
+    return `${whole}`;
+  };
   
   return (
     <div className="p-4 pb-24 max-w-2xl mx-auto animate-fade-in" data-testid="dashboard">
@@ -210,52 +184,35 @@ export const Dashboard = () => {
                   {slot.medicines.map(item => (
                     <div 
                       key={item.entry_id}
-                      className={`flex items-center justify-between p-3 rounded-xl border transition-all ${
-                        item.taken 
-                          ? 'bg-emerald-500/10 border-emerald-500/30' 
-                          : 'bg-zinc-800/50 border-zinc-700 hover:border-zinc-600'
-                      }`}
+                      className="flex items-center justify-between p-3 rounded-xl bg-zinc-800/50 border border-zinc-700"
                       data-testid={`medicine-item-${item.medicine_id}`}
                     >
                       <div className="flex items-center gap-3">
-                        <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${
-                          item.taken ? 'bg-emerald-500' : 'bg-zinc-700'
+                        <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${
+                          item.medicine?.status === 'green' ? 'bg-emerald-500/20' :
+                          item.medicine?.status === 'yellow' ? 'bg-amber-500/20' : 'bg-red-500/20'
                         }`}>
-                          {item.taken ? (
-                            <Check className="w-4 h-4 text-white" />
-                          ) : (
-                            getStatusIcon(item.medicine?.status)
-                          )}
+                          <Pill className={`w-5 h-5 ${
+                            item.medicine?.status === 'green' ? 'text-emerald-400' :
+                            item.medicine?.status === 'yellow' ? 'text-amber-400' : 'text-red-400'
+                          }`} />
                         </div>
                         <div>
-                          <p className={`font-medium ${item.taken ? 'text-emerald-400' : ''}`}>
-                            {item.medicine?.name}
-                          </p>
-                          <p className="text-xs text-zinc-500">
-                            {item.medicine?.dosage} • {item.pills_whole || 1}{item.pills_half > 0 ? ` + ${item.pills_half}½` : ''} {t('pills')}
-                          </p>
+                          <p className="font-medium">{item.medicine?.name}</p>
+                          <p className="text-xs text-zinc-500">{item.medicine?.dosage}</p>
                         </div>
                       </div>
                       
-                      {item.taken ? (
-                        <button
-                          onClick={() => handleUndo(item.log_id)}
-                          className="p-2 hover:bg-zinc-700 rounded-lg transition-colors"
-                          title={t('undo')}
-                          data-testid={`undo-btn-${item.medicine_id}`}
-                        >
-                          <Undo2 className="w-4 h-4 text-zinc-400" />
-                        </button>
-                      ) : (
-                        <button
-                          onClick={() => handleTakeMedicine(item.medicine_id, slot.slot_id)}
-                          className="btn-primary py-2 px-4 text-sm"
-                          data-testid={`take-btn-${item.medicine_id}`}
-                        >
-                          <Check className="w-4 h-4" />
-                          {t('markAsTaken')}
-                        </button>
-                      )}
+                      <div className="text-right">
+                        <p className="font-semibold text-emerald-400">
+                          {formatPillsDisplay(item.pills_whole, item.pills_half)} {language === 'da' ? 'piller' : 'pills'}
+                        </p>
+                        {item.total_mg && (
+                          <p className="text-xs text-zinc-400">
+                            {item.total_mg % 1 === 0 ? item.total_mg : item.total_mg.toFixed(2)}mg
+                          </p>
+                        )}
+                      </div>
                     </div>
                   ))}
                 </div>
