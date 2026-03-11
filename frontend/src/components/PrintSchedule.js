@@ -224,16 +224,8 @@ export const PrintSchedule = ({ onClose }) => {
       doc.text('MediTrack', margin, pageHeight - 10);
       doc.text(language === 'da' ? 'Hold dette skema opdateret' : 'Keep this schedule updated', pageWidth - margin, pageHeight - 10, { align: 'right' });
 
-      const pdfBlob = doc.output('blob');
-      const fileName = `ugeskema_uge${weekNumber}_${(user?.name || 'medicin').replace(/\s+/g, '_')}.pdf`;
-      const url = URL.createObjectURL(new Blob([pdfBlob], { type: 'application/pdf' }));
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = fileName;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      setTimeout(() => URL.revokeObjectURL(url), 1000);
+      const fileName = `ugeskema_uge${weekNumber}.pdf`;
+      doc.save(fileName);
     } catch (err) {
       console.error('PDF generation error:', err);
       alert((language === 'da' ? 'Kunne ikke generere PDF: ' : 'Could not generate PDF: ') + err.message);
