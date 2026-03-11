@@ -18,7 +18,6 @@ const DAYS = [
 export const PrintSchedule = ({ onClose }) => {
   const { user, language, medicines, timeSlots, schedule } = useApp();
   const [generating, setGenerating] = useState(false);
-  const [pdfUrl, setPdfUrl] = useState(null);
   const [weekStart, setWeekStart] = useState(startOfWeek(new Date(), { weekStartsOn: 1 }));
   const locale = language === 'da' ? da : enUS;
 
@@ -226,8 +225,15 @@ export const PrintSchedule = ({ onClose }) => {
       doc.text(language === 'da' ? 'Hold dette skema opdateret' : 'Keep this schedule updated', pageWidth - margin, pageHeight - 10, { align: 'right' });
 
       const pdfBlob = doc.output('blob');
+      const fileName = `ugeskema_uge${weekNumber}_${(user?.name || 'medicin').replace(/\s+/g, '_')}.pdf`;
       const url = URL.createObjectURL(new Blob([pdfBlob], { type: 'application/pdf' }));
-      setPdfUrl(url);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = fileName;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
     } catch (err) {
       console.error('PDF generation error:', err);
       alert((language === 'da' ? 'Kunne ikke generere PDF: ' : 'Could not generate PDF: ') + err.message);
@@ -238,26 +244,6 @@ export const PrintSchedule = ({ onClose }) => {
 
   return (
     <div className="fixed inset-0 bg-black/80 flex items-start justify-center z-50 overflow-auto" data-testid="print-schedule-modal">
-      {/* PDF Viewer overlay */}
-      {pdfUrl && (
-        <div className="fixed inset-0 bg-black z-[60] flex flex-col" data-testid="pdf-viewer">
-          <div className="flex items-center justify-between px-4 py-3 bg-zinc-900 border-b border-zinc-700">
-            <span className="text-white font-medium text-sm">{language === 'da' ? 'Ugeskema PDF' : 'Weekly Schedule PDF'}</span>
-            <button
-              onClick={() => { URL.revokeObjectURL(pdfUrl); setPdfUrl(null); }}
-              className="p-2 hover:bg-zinc-700 rounded-lg transition-colors"
-              data-testid="close-pdf-viewer"
-            >
-              <X className="w-5 h-5 text-zinc-400" />
-            </button>
-          </div>
-          <iframe
-            src={pdfUrl}
-            className="flex-1 w-full"
-            title="PDF"
-          />
-        </div>
-      )}
       <div className="bg-[#0a0a0f] border border-zinc-800 sm:rounded-2xl w-full max-w-6xl sm:my-4 min-h-screen sm:min-h-0 sm:max-h-[90vh] overflow-auto">
         {/* Controls */}
         <div className="sticky top-0 bg-[#0a0a0f] border-b border-zinc-800 px-3 py-3 sm:px-4 sm:py-4 flex items-center justify-between z-10 gap-2">
