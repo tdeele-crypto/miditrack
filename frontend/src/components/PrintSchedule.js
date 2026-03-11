@@ -46,7 +46,7 @@ export const PrintSchedule = ({ onClose }) => {
     }
     
     const mg = mgPerPill ? (mgPerPill * totalPills) : null;
-    const mgStr = mg ? (mg % 1 === 0 ? `${mg}mg` : `${mg.toFixed(2)}mg`) : '';
+    const mgStr = mg ? (mg % 1 === 0 ? `${mg}mg` : `${mg.toFixed(1)}mg`) : '';
     
     return { pills: pillsStr, mg: mgStr };
   };
@@ -74,8 +74,37 @@ export const PrintSchedule = ({ onClose }) => {
   }).filter(slot => slot.entries.length > 0);
 
   const handlePrint = () => {
-    const printContent = printRef.current;
     const printWindow = window.open('', '_blank');
+    
+    const today = new Date();
+    const dateStr = today.toLocaleDateString(language === 'da' ? 'da-DK' : 'en-US', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric'
+    });
+
+    let tableRows = '';
+    
+    scheduleBySlot.forEach(slot => {
+      tableRows += `<tr><td colspan="8" class="slot-header">${slot.name} (${slot.time})</td></tr>`;
+      
+      slot.entries.forEach(entry => {
+        let row = `<tr><td class="medicine-name">${entry.medicine_name}<br><span class="medicine-dosage">${entry.medicine_dosage}</span></td>`;
+        
+        DAYS.forEach(day => {
+          const dose = entry.day_doses?.[day.key];
+          const formatted = formatDose(dose, entry.mgPerPill);
+          if (dose) {
+            row += `<td class="dose-cell"><div class="dose-pills">${formatted.pills}</div>${formatted.mg ? `<div class="dose-mg">${formatted.mg}</div>` : ''}</td>`;
+          } else {
+            row += `<td class="dose-cell"><span class="empty-dose">-</span></td>`;
+          }
+        });
+        
+        row += '</tr>';
+        tableRows += row;
+      });
+    });
     
     printWindow.document.write(`
       <!DOCTYPE html>
@@ -85,7 +114,13 @@ export const PrintSchedule = ({ onClose }) => {
         <style>
           @page {
             size: A4 landscape;
-            margin: 10mm;
+            margin: 15mm;
+          }
+          @media print {
+            body {
+              -webkit-print-color-adjust: exact !important;
+              print-color-adjust: exact !important;
+            }
           }
           * {
             box-sizing: border-box;
@@ -93,102 +128,133 @@ export const PrintSchedule = ({ onClose }) => {
             padding: 0;
           }
           body {
-            font-family: 'Segoe UI', Arial, sans-serif;
-            font-size: 11px;
-            color: #f4f4f5;
-            background: #0a0a0f;
-            -webkit-print-color-adjust: exact;
-            print-color-adjust: exact;
+            font-family: Arial, sans-serif;
+            font-size: 12px;
+            color: #000;
+            background: #fff;
+            padding: 20px;
           }
           .header {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 15px;
-            padding-bottom: 10px;
-            border-bottom: 2px solid #10b981;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 3px solid #10b981;
           }
           .title {
-            font-size: 18px;
+            font-size: 24px;
             font-weight: 700;
-            color: #f4f4f5;
+            color: #000;
           }
           .user-name {
-            font-size: 14px;
-            color: #a1a1aa;
+            font-size: 16px;
+            color: #333;
+            margin-top: 5px;
           }
           .print-date {
-            font-size: 10px;
-            color: #71717a;
+            font-size: 11px;
+            color: #666;
           }
           table {
             width: 100%;
             border-collapse: collapse;
-            margin-bottom: 15px;
+            margin-bottom: 20px;
           }
           th, td {
-            border: 1px solid #27272a;
-            padding: 6px 8px;
+            border: 2px solid #333;
+            padding: 8px 10px;
             text-align: center;
             vertical-align: middle;
           }
           th {
-            background: #1a1a24;
-            font-weight: 600;
-            color: #f4f4f5;
+            background: #f0f0f0 !important;
+            font-weight: 700;
+            color: #000;
+            font-size: 13px;
           }
           .slot-header {
             background: #10b981 !important;
-            color: white !important;
-            font-weight: 600;
+            color: #fff !important;
+            font-weight: 700;
+            font-size: 14px;
             text-align: left;
-            padding: 8px 12px;
+            padding: 10px 15px;
           }
           .medicine-name {
             text-align: left;
-            font-weight: 600;
-            background: #12121a;
-            color: #f4f4f5;
+            font-weight: 700;
+            background: #f8f8f8 !important;
+            color: #000;
+            font-size: 13px;
+            min-width: 150px;
           }
           .medicine-dosage {
-            font-size: 9px;
-            color: #a1a1aa;
+            font-size: 10px;
+            color: #666;
             font-weight: normal;
           }
           .dose-cell {
-            min-width: 60px;
-            background: #12121a;
+            min-width: 70px;
+            background: #fff !important;
           }
           .dose-pills {
-            font-weight: 600;
-            font-size: 12px;
-            color: #f4f4f5;
+            font-weight: 700;
+            font-size: 16px;
+            color: #000;
           }
           .dose-mg {
-            font-size: 9px;
+            font-size: 10px;
             color: #10b981;
-            font-weight: 500;
+            font-weight: 600;
           }
           .empty-dose {
-            color: #3f3f46;
+            color: #ccc;
+            font-size: 14px;
           }
           .day-header {
-            font-weight: 600;
+            font-weight: 700;
             min-width: 70px;
           }
           .footer {
-            margin-top: 20px;
-            padding-top: 10px;
-            border-top: 1px solid #27272a;
-            font-size: 9px;
-            color: #71717a;
+            margin-top: 25px;
+            padding-top: 15px;
+            border-top: 1px solid #ccc;
+            font-size: 10px;
+            color: #666;
             display: flex;
             justify-content: space-between;
           }
         </style>
       </head>
       <body>
-        ${printContent.innerHTML}
+        <div class="header">
+          <div>
+            <div class="title">${language === 'da' ? 'UGESKEMA' : 'WEEKLY SCHEDULE'}</div>
+            <div class="user-name">${user?.name}</div>
+          </div>
+          <div class="print-date">${language === 'da' ? 'Udskrevet' : 'Printed'}: ${dateStr}</div>
+        </div>
+        
+        ${scheduleBySlot.length === 0 
+          ? `<p style="text-align:center;padding:40px;color:#666;">${language === 'da' ? 'Intet skema at vise' : 'No schedule to display'}</p>`
+          : `<table>
+              <thead>
+                <tr>
+                  <th style="text-align:left;min-width:150px;">${language === 'da' ? 'Medicin' : 'Medicine'}</th>
+                  ${DAYS.map(day => `<th class="day-header">${language === 'da' ? day.short_da : day.short_en}</th>`).join('')}
+                </tr>
+              </thead>
+              <tbody>
+                ${tableRows}
+              </tbody>
+            </table>`
+        }
+        
+        <div class="footer">
+          <span>MediTrack</span>
+          <span>${language === 'da' ? 'Hold dette skema opdateret' : 'Keep this schedule updated'}</span>
+        </div>
       </body>
       </html>
     `);
@@ -197,8 +263,7 @@ export const PrintSchedule = ({ onClose }) => {
     printWindow.focus();
     setTimeout(() => {
       printWindow.print();
-      printWindow.close();
-    }, 250);
+    }, 500);
   };
 
   const today = new Date();
@@ -210,10 +275,10 @@ export const PrintSchedule = ({ onClose }) => {
 
   return (
     <div className="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-50 overflow-auto">
-      <div className="bg-white rounded-2xl w-full max-w-6xl max-h-[90vh] overflow-auto">
+      <div className="bg-[#0a0a0f] border border-zinc-800 rounded-2xl w-full max-w-6xl max-h-[90vh] overflow-auto">
         {/* Controls */}
-        <div className="sticky top-0 bg-white border-b border-gray-200 p-4 flex items-center justify-between z-10">
-          <h2 className="text-xl font-bold text-gray-800">
+        <div className="sticky top-0 bg-[#0a0a0f] border-b border-zinc-800 p-4 flex items-center justify-between z-10">
+          <h2 className="text-xl font-bold text-white">
             {language === 'da' ? 'Ugeskema til print' : 'Weekly Schedule for Print'}
           </h2>
           <div className="flex gap-2">
@@ -227,84 +292,88 @@ export const PrintSchedule = ({ onClose }) => {
             </button>
             <button
               onClick={onClose}
-              className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+              className="p-2 hover:bg-zinc-800 rounded-lg transition-colors"
             >
-              <X className="w-5 h-5 text-gray-600" />
+              <X className="w-5 h-5 text-zinc-400" />
             </button>
           </div>
         </div>
 
-        {/* Print Content */}
-        <div ref={printRef} className="p-6">
-          <div className="header">
+        {/* Preview Content */}
+        <div ref={printRef} className="p-6 bg-[#12121a]">
+          {/* Header */}
+          <div className="flex justify-between items-center mb-6 pb-4 border-b-2 border-emerald-500">
             <div>
-              <div className="title">
+              <h1 className="text-2xl font-bold text-white">
                 {language === 'da' ? 'UGESKEMA' : 'WEEKLY SCHEDULE'}
-              </div>
-              <div className="user-name">{user?.name}</div>
+              </h1>
+              <p className="text-zinc-400 mt-1">{user?.name}</p>
             </div>
-            <div className="print-date">
+            <p className="text-sm text-zinc-500">
               {language === 'da' ? 'Udskrevet' : 'Printed'}: {dateStr}
-            </div>
+            </p>
           </div>
 
           {scheduleBySlot.length === 0 ? (
-            <div className="text-center py-12 text-gray-500">
+            <div className="text-center py-12 text-zinc-500">
               {language === 'da' ? 'Intet skema at vise' : 'No schedule to display'}
             </div>
           ) : (
-            <table>
-              <thead>
-                <tr>
-                  <th style={{ width: '140px', textAlign: 'left' }}>
-                    {language === 'da' ? 'Medicin' : 'Medicine'}
-                  </th>
-                  {DAYS.map(day => (
-                    <th key={day.key} className="day-header">
-                      {language === 'da' ? day.short_da : day.short_en}
+            <div className="overflow-x-auto">
+              <table className="w-full border-collapse">
+                <thead>
+                  <tr>
+                    <th className="border border-zinc-700 bg-zinc-800 text-white font-bold p-3 text-left min-w-[150px]">
+                      {language === 'da' ? 'Medicin' : 'Medicine'}
                     </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {scheduleBySlot.map(slot => (
-                  <React.Fragment key={slot.slot_id}>
-                    <tr>
-                      <td colSpan={8} className="slot-header">
-                        {slot.name} ({slot.time})
-                      </td>
-                    </tr>
-                    {slot.entries.map(entry => (
-                      <tr key={entry.entry_id}>
-                        <td className="medicine-name">
-                          {entry.medicine_name}
-                          <div className="medicine-dosage">{entry.medicine_dosage}</div>
-                        </td>
-                        {DAYS.map(day => {
-                          const dose = entry.day_doses?.[day.key];
-                          const formatted = formatDose(dose, entry.mgPerPill);
-                          return (
-                            <td key={day.key} className="dose-cell">
-                              {dose ? (
-                                <>
-                                  <div className="dose-pills">{formatted.pills}</div>
-                                  {formatted.mg && <div className="dose-mg">{formatted.mg}</div>}
-                                </>
-                              ) : (
-                                <span className="empty-dose">-</span>
-                              )}
-                            </td>
-                          );
-                        })}
-                      </tr>
+                    {DAYS.map(day => (
+                      <th key={day.key} className="border border-zinc-700 bg-zinc-800 text-white font-bold p-3 min-w-[80px]">
+                        {language === 'da' ? day.short_da : day.short_en}
+                      </th>
                     ))}
-                  </React.Fragment>
-                ))}
-              </tbody>
-            </table>
+                  </tr>
+                </thead>
+                <tbody>
+                  {scheduleBySlot.map(slot => (
+                    <React.Fragment key={slot.slot_id}>
+                      <tr>
+                        <td colSpan={8} className="bg-emerald-600 text-white font-bold p-3 text-left">
+                          {slot.name} ({slot.time})
+                        </td>
+                      </tr>
+                      {slot.entries.map(entry => (
+                        <tr key={entry.entry_id}>
+                          <td className="border border-zinc-700 bg-zinc-900 text-white font-semibold p-3 text-left">
+                            {entry.medicine_name}
+                            <div className="text-xs text-zinc-400 font-normal">{entry.medicine_dosage}</div>
+                          </td>
+                          {DAYS.map(day => {
+                            const dose = entry.day_doses?.[day.key];
+                            const formatted = formatDose(dose, entry.mgPerPill);
+                            return (
+                              <td key={day.key} className="border border-zinc-700 bg-zinc-900 text-center p-3">
+                                {dose ? (
+                                  <>
+                                    <div className="text-lg font-bold text-white">{formatted.pills}</div>
+                                    {formatted.mg && <div className="text-xs text-emerald-400 font-semibold">{formatted.mg}</div>}
+                                  </>
+                                ) : (
+                                  <span className="text-zinc-600">-</span>
+                                )}
+                              </td>
+                            );
+                          })}
+                        </tr>
+                      ))}
+                    </React.Fragment>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           )}
 
-          <div className="footer">
+          {/* Footer */}
+          <div className="mt-6 pt-4 border-t border-zinc-800 flex justify-between text-xs text-zinc-500">
             <span>MediTrack</span>
             <span>{language === 'da' ? 'Hold dette skema opdateret' : 'Keep this schedule updated'}</span>
           </div>
