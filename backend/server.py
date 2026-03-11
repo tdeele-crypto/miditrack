@@ -781,7 +781,8 @@ def _is_ordination_active(ord_data, check_date):
     return days_diff == 0
 
 @api_router.get("/schedule/{user_id}/pdf")
-async def generate_schedule_pdf(user_id: str, week_offset: int = 0, lang: str = "da"):
+async def _build_pdf_bytes(user_id: str, week_offset: int = 0, lang: str = "da"):
+    """Generate PDF bytes for a user's schedule."""
     user = await db.users.find_one({"user_id": user_id}, {"_id": 0})
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
@@ -909,13 +910,63 @@ async def generate_schedule_pdf(user_id: str, week_offset: int = 0, lang: str = 
 
     doc.build(elements)
     buffer.seek(0)
+    week_num_val = week_num
+    return buffer, week_num_val, user
 
+@api_router.get("/schedule/{user_id}/pdf")
+async def generate_schedule_pdf(user_id: str, week_offset: int = 0, lang: str = "da"):
+    buffer, week_num, user = await _build_pdf_bytes(user_id, week_offset, lang)
     filename = f"ugeskema_uge{week_num}.pdf"
     return StreamingResponse(
         buffer,
         media_type="application/pdf",
         headers={"Content-Disposition": f"attachment; filename={filename}"}
     )
+
+class EmailPdfRequest(BaseModel):
+    week_offset: int = 0
+    lang: str = "da"
+
+@api_router.post("/schedule/{user_id}/email-pdf")
+async def email_schedule_pdf(user_id: str, request: EmailPdfRequest):
+    user = await db.users.find_one({"user_id": user_id}, {"_id": 0})
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    if not user.get('email'):
+        raise HTTPException(status_code=400, detail="No email on file")
+    
+    buffer, week_num, _ = await _build_pdf_bytes(user_id, request.week_offset, request.lang)
+    pdf_bytes = buffer.read()
+    
+    import base64
+    pdf_b64 = base64.b64encode(pdf_bytes).decode('utf-8')
+    filename = f"ugeskema_uge{week_num}.pdf"
+    
+    subject = f"MediTrack - {'Ugeskema Uge' if request.lang == 'da' else 'Weekly Schedule Week'} {week_num}"
+    html = f"""
+    <div style="font-family: Arial, sans-serif; max-width: 500px; margin: 0 auto; padding: 20px;">
+        <h2 style="color: #10b981;">MediTrack</h2>
+        <p>{'Dit ugeskema er vedhæftet som PDF.' if request.lang == 'da' else 'Your weekly schedule is attached as PDF.'}</p>
+        <p style="color: #6b7280; font-size: 12px;">{'Uge' if request.lang == 'da' else 'Week'} {week_num} - {user.get('name', '')}</p>
+    </div>
+    """
+    
+    if not resend.api_key:
+        raise HTTPException(status_code=500, detail="Email not configured")
+    
+    try:
+        params = {
+            "from": SENDER_EMAIL,
+            "to": [user['email']],
+            "subject": subject,
+            "html": html,
+            "attachments": [{"filename": filename, "content": pdf_b64}]
+        }
+        await asyncio.to_thread(resend.Emails.send, params)
+        return {"success": True, "message": f"PDF sent to {user['email']}"}
+    except Exception as e:
+        logger.error(f"Failed to send PDF email: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 app.include_router(api_router)
