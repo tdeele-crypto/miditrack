@@ -265,7 +265,8 @@ export const AppProvider = ({ children }) => {
       const res = await axios.post(`${API_URL}/api/schedule/${user.user_id}`, {
         medicine_id: entry.medicine_id,
         slot_id: entry.slot_id,
-        day_doses: entry.day_doses
+        day_doses: entry.day_doses || {},
+        special_ordination: entry.special_ordination || null
       });
       await fetchSchedule();
       await fetchMedicines();

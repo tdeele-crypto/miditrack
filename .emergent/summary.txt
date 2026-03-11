@@ -1,5 +1,5 @@
 <analysis>**original_problem_statement:** 
-My app should be able to keep track of what medicine I have in stock, as well as be able to create a weekly schedule where you can tell which preparations you have taken, and when. The user must have the option to tell what time of day they are taking medicine (e.g. Morning, Noon, Evening and Night), and then tell which medicine is taken, and at what time. The user should be able to choose how long before they run out of a preparation they should get a reminder to order medicine. There must also be symbols next to each preparation that show the status of when they expire. e.g. (Green thumbs up, Yellow triangle if there is less than a month until you run out, and Red triangle if you are within the time frame where your reminder is set. If the reminder is set to 1 month, then the yellow one should only come 14 days before the reminder is set. The user must choose a pin code on first use, and possibly the option of biometric login thereafter. After choosing a pin code, the program must have your name and email entered. The email is used to create a new pin code.
+My app should be able to keep track of what medicine I have in stock, as well as be able to create a weekly schedule where you can tell which preparations you have taken, and when. The user must have the option to tell what time of day they are taking medicine (e.g. Morning, Noon, Evening and Night), and then tell which medicine is taken, and at what time. The user should be able to choose how long before they run out of a preparation they should get a reminder to order medicine. There must also be symbols next to each preparation that show the status of when they expire. The user must choose a pin code on first use, and possibly the option of biometric login thereafter. After choosing a pin code, the program must have your name and email entered. The email is used to create a new pin code.
 
 **PRODUCT REQUIREMENTS:**
 - Standalone app with own database.
@@ -13,85 +13,99 @@ My app should be able to keep track of what medicine I have in stock, as well as
 - The system should automatically deduct medicine stock (no Mark as taken button).
 - The print schedule should be generated as a downloadable PDF file.
 - The dashboard view should not have a month/year calendar header, only day names.
+- Medicine forms should support start dates, end dates, and recurrence patterns.
+- The schedule should support special, recurring ordinations based on dates rather than fixed weekdays.
 
 **User's preferred language**: Danish
 
 **what currently exists?**
-A functional web-app prototype for a medicine management application. The backend is built with FastAPI and MongoDB, and the frontend with React. Users can register, log in, add medicines to their inventory (specifying name, strength, stock, and reorder reminder period), and create a detailed weekly schedule. The schedule supports assigning different dosages (including fractional pills) for each day of the week for specific medicines and time slots (Morning, Midday, Evening, Night). The UI has a dark theme and supports Danish/English. A print-friendly view of the schedule has been created, and the latest feature being worked on is to download this view as a PDF.
+A functional full-stack web application for medicine management using React, FastAPI, and MongoDB. Key features implemented include:
+- User registration and login with PIN, including a user-switching feature on the login screen for saved profiles.
+- Medicine inventory management with stock tracking, reminders, start/end dates, and recurrence patterns.
+- A detailed schedule page where users can add medicine entries.
+- An Add Stock feature to easily update medicine quantities.
+- A mobile-responsive UI with a dark theme and support for Danish/English.
+- A dashboard with week-by-week navigation.
+- Inline editing for schedule time slots (e.g., Morning, Midday).
+- A Special Ordination feature for creating complex, date-based recurring schedules (e.g., every 14 days).
+- Modals for editing medicine and schedule entries have been made scrollable to improve mobile usability.
 
 **Last working item**:
-- Last item agent was working: The agent was attempting to implement a Download PDF feature for the weekly medicine schedule. The initial approach using  was replaced with  and  to generate a downloadable file. However, the download button is not working, and the agent was in the process of debugging it.
-- Status: IN PROGRESS
+- Last item agent was working: The user requested a significant refactoring of the Add to Schedule form to improve the workflow for creating Special Ordinations. The agent acknowledged the request and was about to begin implementation.
+- Status: NOT STARTED
 - Agent Testing Done: N
 - Which testing method agent to use? Frontend testing agent
 - User Testing Done: N
 
-**All Pending/In-progress Issue list**:
-- Issue 1: (P0) PDF download for the weekly schedule is not working.
+**All Pending/In progress Issue list**:
+- Issue 1: (P0) Refactor the Add to Schedule form workflow.
 
   Issues Detail:
   - Issue 1: 
-     - **Description**: The Download PDF button in the  component does not trigger a download or any other visible action.
-     - **Attempted fixes**: 
-        1. Implemented  and  to capture a DOM element and convert it to a PDF.
-        2. Changed the import statement for  from default to named import ().
-        3. Added  blocks and  statements for better error handling and to check if the  function is being called.
+     - **Description**: The user wants to change the logic for creating schedule entries. The Special Ordination feature should be the primary input method, which alters the form's layout and logic dynamically.
+        1. Move the Special Ordination button to be directly under the Select Medicine dropdown.
+        2. When a special ordination is being created/edited, the standard Select Time Slot dropdown and the weekly dose inputs (Mon, Tue, etc.) should be hidden.
+        3. The time of day selection (Morgen, Middag, Aften, Nat) must be moved *inside* the Special Ordination popup modal.
+        4. The form should allow saving a special ordination without requiring the user to fill out the (now hidden) weekly dose inputs.
+     - **Attempted fixes**: None. This is a new request based on the last user message.
      - **Next debug checklist**:
-        1. Open the browser's developer console (F12) and check for any error messages when clicking the Download PDF button.
-        2. Verify if the  statements added in  are appearing in the console.
-        3. Ensure the  element exists and is correctly passed to .
-        4. Investigate potential conflicts with CSS, especially the dark theme, that might cause  to fail silently.
-        5. If the above fails, implement the alternative Blob download method the previous agent considered.
-     - **Why fix this issue and what will be achieved with the fix?**: This is a core user request, enabling users to have a physical or shareable copy of their weekly medication plan.
-     - **Status**: IN PROGRESS
+        1. In , relocate the Special Ordination button and its logic to be rendered immediately after the medicine selection dropdown.
+        2. Modify the Special Ordination popup to include a new dropdown for selecting the time of day ().
+        3. Use conditional rendering (e.g., ) to hide the main time slot dropdown and the weekly dose input fields when a special ordination is active.
+        4. Adjust the  function to get the  from the special ordination state and bypass validation for the  field when a special ordination is set.
+     - **Why fix this issue and what will be achieved with the fix?**: This will streamline the user's preferred workflow for creating recurring, date-based schedules, making the UI more intuitive.
+     - **Status**:  NOT STARTED
      - **Is recurring issue?** N
      - **Should Test frontend/backend/both after fix?** Frontend
      - **Blocked on other issue**: None
 
 **In progress Task List**:
-None. The current focus is on fixing the pending issue.
+None.
 
 **Upcoming and Future Tasks**
 **Upcoming Tasks:**
-- (P1) Full end-to-end testing: Once the PDF download feature is fixed, a comprehensive test of the entire application flow (registration, login, adding medicine, creating/editing a schedule, downloading PDF) should be performed using the .
-- (P2) Biometric Login: The original request mentioned an option for biometric login after PIN setup. This is a mobile-native feature and would be relevant when/if the project is ported to React Native.
+- (P1) End-to-end testing: Once the form refactor is complete, perform a comprehensive test of the entire application, especially the user login, medicine creation, and complex schedule creation flows.
+- (P2) Verify PDF download: The original PDF download feature was a blocker. While many UI fixes have been made, its functionality on the redesigned, mobile-friendly print view () should be explicitly tested.
 
 **Future Tasks:**
-- (P1) Port to React Native/Expo: The current web app is a prototype. The original goal was a true mobile app. The next major phase would be to build the React Native app, reusing the existing backend.
-- (P2) Native Push Notifications: Implement reliable reminders using Expo Push Notifications, which was the reason for choosing the React Native path initially.
+- (P1) Biometric Login: Implement biometric authentication, likely requiring a pivot to React Native.
+- (P2) Port to React Native/Expo: Migrate the web application to a native mobile app to support features like push notifications.
+- (P3) Native Push Notifications: Implement reliable reminders using a service like Expo Push Notifications.
 
 **Completed work in this session**
+- **User Authentication**: Implemented an email-based login and a user-switcher on the login screen with a Save user checkbox.
+- **Dashboard UI**: Added week-by-week navigation and removed date numbers from the daily header while making weekday names bold.
+- **Medicine Page UI**:
+  - Made the bottom navigation bar sticky ().
+  - Implemented an Add Stock feature with a dedicated button and modal.
+  - Redesigned medicine cards: moved the delete button into the Edit modal, centered text, and made the status badge full-width.
+  - Made the Edit Medicine modal scrollable for better mobile usability.
+- **Schedule Page UI**:
+  - Made schedule time slots (Morgen, Middag, etc.) editable via a mobile-friendly popup modal.
+  - Implemented a Special Ordination feature for creating date-based recurring schedules, with a dedicated popup for start/end dates and repeat patterns.
+  - Made the Add to Schedule modal scrollable.
 - **Backend**:
-  - Implemented user authentication with PIN.
-  - CRUD APIs for medicines ().
-  - Complex CRUD APIs for the weekly schedule, allowing different doses per day ().
-  - Removed automatic stock deduction logic () and logging endpoints.
-- **Frontend**:
-  - Created a multi-page React application with components for Auth, Dashboard, Medicines, and Schedule management.
-  - Implemented a dark theme and internationalization (i18n) for Danish and English.
-  - Refactored the Schedule and Medicine forms multiple times based on user feedback.
-  - Created a print-only view for the weekly schedule ().
-  - Removed the Mark as taken functionality from the dashboard for automatic stock handling.
-  - Cleaned up the UI by removing the calendar header from the dashboard.
-- **Bug Fixes**:
-  - Fixed a logout crash () by cleaning up .
-  - The testing agent fixed a backend bug where the medicine  was incorrectly handled as an  instead of a .
+  - Extended the  model to include , , , and .
+  - Extended the  model to include a  object for complex recurring entries.
+- **Mobile Responsiveness**:
+  - Redesigned the  component with a card-based layout for mobile devices.
+  - Fixed multiple modals (, ) to be scrollable on small screens.
 
 **Earlier issues found/mentioned but not fixed**
 None.
 
 **Known issue recurrence from previous fork**
-- **Issue**: Session resets frequently, forcing the agent to re-authenticate or re-add data to test frontend flows.
+- **Issue**: Session resets frequently during development, requiring re-authentication and re-entry of test data.
 - **Recurrence count**: High
-- **Status**: NOT RESOLVED (This seems to be a characteristic of the development environment rather than an application bug).
+- **Status**: NOT RESOLVED (Considered a characteristic of the development environment).
 
 **Code Architecture**
 
 
 **Key Technical Concepts**
-- **Frontend**: React, Tailwind CSS,  for translation,  and  for PDF generation.
-- **Backend**: FastAPI, Pydantic for data modeling, MongoDB for storage.
-- **Architecture**: Single Page Application (SPA) with a RESTful API backend.
+- **Frontend**: React, Tailwind CSS, , , ,  (via shadcn/ui).
+- **Backend**: FastAPI, Pydantic, MongoDB.
+- **Architecture**: SPA with a RESTful API backend. State management via React Context.
 
 **key DB schema**
 - **users**: 
@@ -99,68 +113,67 @@ None.
 - **schedules**: 
 
 **changes in tech stack**
-- Added  and  to the frontend for PDF generation.
+-  and its  dependency were added to support the shadcn/ui Calendar component.
 
 **All files of reference**
-- : Contains the logic for the printable view and the broken PDF download functionality. This is the primary file for the current issue.
-- : Renders the main user dashboard and contains the button that opens the print view.
-- : Contains all API logic. Stable but might be needed for reference.
-- : Manages global state; useful for understanding data flow.
-- : The component for creating and editing the schedule data that needs to be printed.
+- : **Primary file for the next task**. Contains the form logic that needs to be refactored.
+- : Contains the API logic for schedules and medicines that was recently updated.
+- : Contains the scrollable Edit Medicine modal and date fields.
+- : Contains the week navigation UI.
+-  and : Will need updates for new UI text in the refactored form.
 
 **Areas that need refactoring**:
-None at the moment.
+-  and  have grown significantly. Helper components defined within them (e.g., , , ) should be extracted into separate files under a  directory to improve code organization and reusability.
 
 **key api endpoints**
 - 
-- 
-- 
-- 
-- 
-- 
--  (This was created but might be deprecated by the newer model)
-- 
+-  (Updated to handle new date and recurrence fields)
+-  (Updated to handle new date and recurrence fields)
+-  (Updated to handle )
+-  (Updated to handle )
 - 
 
 **Critical Info for New Agent**
-- The original goal was a React Native app, but the current implementation is a web prototype due to environment limitations. Do not get confused by early messages about React Native/Expo.
-- The user is Danish and provides requests in Danish. You must respond in Danish.
-- The Download PDF feature is the current blocker. The implementation uses  and . The previous agent added console logs to debug; you should check the browser console first.
-- Frequent session resets are normal in this environment; be prepared to re-authenticate or re-enter data when testing the frontend.
+- The user is Danish; all communication must be in Danish.
+- The immediate task is a **P0** refactor of the Add to Schedule form in  as per the user's latest request. This is not a bug fix but a change in workflow logic.
+- The application has several large component files (, ) that contain smaller, self-contained components. Consider refactoring these into separate files for better maintainability after the current task is complete.
+- Be prepared for the development environment's session to reset, which may require re-registering a user to test frontend flows.
 
 **documents and test reports created in this job**
-- 
+-  (updated during the session)
 
 **Last 10 User Messages and any pending HUMAN messages** 
-1.  (can you let the default .pdf program open the pdf) - **In Progress**
-2.  (nothing happens when I press download pdf) - **In Progress**
-3.  (User provided a JS error on logout) - **Resolved**
-4.  (Remove the calendar and let the weekdays stay on the overview) - **Completed**
-5.  (You can't see what is on the weekly schedule, and the pdf is not generated) - **Partially Resolved** (Preview fixed, PDF generation is now the problem)
-6.  (On the weekly schedule, use black font... on the overview page, the 'mark as taken' can just be deleted...) - **Completed**
-7.  (on the overview page, you should be able to make a medicine dosage schedule...) - **Completed**
-8.  (Request to have different doses on different days) - **Completed**
-9.  - **Completed**
-10.  (you should be able to edit the dose on the schedule) - **Completed**
+1.  (When special ordination is selected, time of day should be chosen on that page. Hide the weekdays. Move the button up.) - **In Progress (New P0 task)**
+2.  (Why can't I see the changes with special ordination on the Add Schedule form?) - **Resolved** (Agent fixed form scrolling).
+3.  (Add a special ordination button to this page...) - **Completed**.
+4.  (The edit medicine form needs to be scrollable and open at the top...) - **Completed**.
+5.  (Make the editing of times like morning, midday, etc. a popup...) - **Completed**.
+6.  (I need the dates back along with week navigation on the overview page...) - **Completed**.
+7.  (On the schedule page, you should be able to edit the times... just by clicking them.) - **Completed**.
+8.  (Move the delete button to the Edit page... and make a red delete button...) - **Completed**.
+9.  (Make the stock OK bar full-width... change the edit box to be two parts...) - **Completed**.
+10.  (Move stock ok to under the strength (mg) on the medicine on mobile.) - **Completed**.
 
 **Project Health Check:**
 - **Broken**:
-  - PDF Download feature ()
+  - The workflow of the Add to Schedule form () does not align with the user's latest requirements and needs to be refactored.
 - **Mocked**:
-  - None
+  - None.
 
 **3rd Party Integrations**
-- **Resend**: Used for sending emails (e.g., PIN reset). Keys need to be provided by the user. The playbook has been consulted.
-- **jsPDF / html2canvas**: Used for frontend PDF generation. No keys required.
+- **Resend**: For emails (e.g., PIN reset).
+- **jsPDF / html2canvas**: For frontend PDF generation.
+- **lucide-react**: For icons.
+- **react-day-picker / date-fns**: For calendar UI.
 
 **Testing status**
-- **Testing agent used after significant changes**: YES
+- **Testing agent used after significant changes**: NO
 - **Troubleshoot agent used after agent stuck in loop**: NO
 - **Test files created**: None
 - **Known regressions**: None
 
 **Credentials to test flow:**
-No fixed credentials. The agent must use the registration flow to create a new user for each test session.
+No fixed credentials. Registration of a new user is required for each test session.
 
 **What agent forgot to execute**
-The agent correctly identified the platform's limitations (web-only, not React Native) and pivoted to a prototype, which was the right call. The implementation has closely followed the user's evolving requests. No major tasks have been forgotten.</analysis>
+The agent has been very diligent and has not forgotten any major requests. The implementation has closely followed the user's evolving requirements.</analysis>

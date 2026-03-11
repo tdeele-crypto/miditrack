@@ -81,6 +81,7 @@ export const translations = {
     ordActive: "Aktiv ordination",
     ordFrom: "Fra",
     ordTo: "Til",
+    ordSelectTimeOfDay: "Vælg tidspunkt på dagen",
     
     // Schedule
     weeklySchedule: "Ugentligt skema",
@@ -216,6 +217,7 @@ export const translations = {
     ordActive: "Active ordination",
     ordFrom: "From",
     ordTo: "To",
+    ordSelectTimeOfDay: "Select time of day",
     
     // Schedule
     weeklySchedule: "Weekly Schedule",

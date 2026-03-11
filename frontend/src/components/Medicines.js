@@ -13,7 +13,8 @@ import {
   X,
   Package,
   CalendarIcon,
-  Repeat
+  Repeat,
+  Pill
 } from 'lucide-react';
 
 const DatePickerField = ({ label, value, onChange, locale, testId }) => {

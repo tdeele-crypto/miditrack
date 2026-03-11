@@ -510,7 +510,7 @@ async def create_schedule_entry(user_id: str, entry: ScheduleEntryCreate):
     if existing:
         await db.schedule_entries.update_one(
             {"entry_id": existing["entry_id"]},
-            {"$set": {"day_doses": entry.day_doses}}
+            {"$set": {"day_doses": entry.day_doses, "special_ordination": entry.special_ordination}}
         )
         entry_id = existing["entry_id"]
     else:

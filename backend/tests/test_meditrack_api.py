@@ -409,6 +409,91 @@ class TestMedicineLogging:
         print("SUCCESS: Medicine log undone")
 
 
+class TestSpecialOrdination:
+    """Test special ordination feature in schedule entries"""
+    
+    @pytest.fixture(autouse=True)
+    def setup(self):
+        """Setup using existing test data"""
+        if not hasattr(TestUserRegistrationAndLogin, 'user_id'):
+            pytest.skip("User registration test must run first")
+        if not hasattr(TestTimeSlotsAndMedicines, 'medicine_id'):
+            pytest.skip("Medicine creation test must run first")
+        if not hasattr(TestTimeSlotsAndMedicines, 'morning_slot_id'):
+            pytest.skip("Time slots test must run first")
+            
+        self.user_id = TestUserRegistrationAndLogin.user_id
+        self.medicine_id = TestTimeSlotsAndMedicines.medicine_id
+        self.slot_id = TestTimeSlotsAndMedicines.morning_slot_id
+    
+    def test_01_create_schedule_with_special_ordination(self):
+        """Create schedule entry with special ordination (empty day_doses)"""
+        payload = {
+            "medicine_id": self.medicine_id,
+            "slot_id": self.slot_id,
+            "day_doses": {},  # Empty when using special ordination
+            "special_ordination": {
+                "start_date": "2026-03-15",
+                "end_date": "2026-06-15",
+                "repeat": "weekly"
+            }
+        }
+        response = requests.post(f"{BASE_URL}/api/schedule/{self.user_id}", json=payload)
+        assert response.status_code == 200, f"Schedule creation with ordination failed: {response.text}"
+        
+        data = response.json()
+        assert data["medicine_id"] == self.medicine_id
+        assert data["slot_id"] == self.slot_id
+        assert data["special_ordination"] is not None
+        assert data["special_ordination"]["start_date"] == "2026-03-15"
+        assert data["special_ordination"]["end_date"] == "2026-06-15"
+        assert data["special_ordination"]["repeat"] == "weekly"
+        assert data["day_doses"] == {}  # Empty
+        
+        TestSpecialOrdination.ordination_entry_id = data["entry_id"]
+        print(f"SUCCESS: Created schedule with special ordination {data['entry_id']}")
+    
+    def test_02_get_schedule_with_ordination(self):
+        """Verify special ordination is returned in schedule GET"""
+        response = requests.get(f"{BASE_URL}/api/schedule/{self.user_id}")
+        assert response.status_code == 200
+        
+        data = response.json()
+        entry = next((e for e in data if e.get("entry_id") == TestSpecialOrdination.ordination_entry_id), None)
+        assert entry is not None
+        assert entry["special_ordination"] is not None
+        assert entry["special_ordination"]["repeat"] == "weekly"
+        print("SUCCESS: Schedule GET returns special ordination data")
+    
+    def test_03_update_schedule_ordination(self):
+        """Update special ordination on existing entry"""
+        payload = {
+            "special_ordination": {
+                "start_date": "2026-04-01",
+                "end_date": None,  # Open-ended
+                "repeat": "daily"
+            }
+        }
+        response = requests.put(
+            f"{BASE_URL}/api/schedule/{self.user_id}/{TestSpecialOrdination.ordination_entry_id}",
+            json=payload
+        )
+        assert response.status_code == 200
+        
+        data = response.json()
+        assert data["special_ordination"]["start_date"] == "2026-04-01"
+        assert data["special_ordination"]["repeat"] == "daily"
+        print("SUCCESS: Updated special ordination")
+    
+    def test_04_delete_ordination_entry(self):
+        """Delete schedule entry with ordination"""
+        response = requests.delete(
+            f"{BASE_URL}/api/schedule/{self.user_id}/{TestSpecialOrdination.ordination_entry_id}"
+        )
+        assert response.status_code == 200
+        print("SUCCESS: Deleted schedule entry with ordination")
+
+
 class TestCleanup:
     """Cleanup test data"""
     

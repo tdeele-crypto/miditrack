@@ -234,7 +234,8 @@ export const Schedule = () => {
   const [ordData, setOrdData] = useState({
     start_date: null,
     end_date: null,
-    repeat: 'daily'
+    repeat: 'daily',
+    time_of_day_id: ''
   });
   
   const resetForm = () => {
@@ -243,6 +244,12 @@ export const Schedule = () => {
       slot_id: '',
       day_doses: {},
       special_ordination: null
+    });
+    setOrdData({
+      start_date: null,
+      end_date: null,
+      repeat: 'daily',
+      time_of_day_id: ''
     });
     setEditingEntry(null);
     setShowForm(false);
@@ -269,7 +276,12 @@ export const Schedule = () => {
           special_ordination: formData.special_ordination
         });
       } else {
-        await addScheduleEntry(formData);
+        await addScheduleEntry({
+          medicine_id: formData.medicine_id,
+          slot_id: formData.slot_id,
+          day_doses: formData.special_ordination ? {} : formData.day_doses,
+          special_ordination: formData.special_ordination
+        });
       }
       resetForm();
     } catch (err) {
@@ -456,6 +468,7 @@ export const Schedule = () => {
             <form onSubmit={handleSubmit} className="space-y-4">
               {!editingEntry && (
                 <>
+                  {/* 1. Select Medicine */}
                   <div>
                     <label className="block text-sm text-zinc-400 mb-2">{t('selectMedicine')}</label>
                     <select
@@ -474,23 +487,85 @@ export const Schedule = () => {
                     </select>
                   </div>
                   
-                  <div>
-                    <label className="block text-sm text-zinc-400 mb-2">{t('selectTimeSlot')}</label>
-                    <select
-                      value={formData.slot_id}
-                      onChange={e => setFormData(prev => ({ ...prev, slot_id: e.target.value }))}
-                      className="select-field"
-                      required
-                      data-testid="select-timeslot"
-                    >
-                      <option value="">{t('selectTimeSlot')}...</option>
-                      {timeSlots.map(slot => (
-                        <option key={slot.slot_id} value={slot.slot_id}>
-                          {slot.name} ({slot.time})
-                        </option>
-                      ))}
-                    </select>
-                  </div>
+                  {/* 2. Special Ordination button - directly under medicine select */}
+                  {formData.medicine_id && (
+                    <>
+                      {formData.special_ordination ? (
+                        <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/30">
+                          <div className="flex items-center justify-between mb-2">
+                            <div className="flex items-center gap-2 text-emerald-400 text-sm font-medium">
+                              <FileText className="w-4 h-4" />
+                              {t('specialOrdination')}
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => setFormData(prev => ({ ...prev, special_ordination: null, slot_id: '' }))}
+                              className="p-1 hover:bg-zinc-800 rounded text-zinc-500 hover:text-red-400"
+                              data-testid="remove-ordination-btn"
+                            >
+                              <X className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                          <div className="text-sm text-zinc-300 space-y-1">
+                            {(() => {
+                              const ordSlot = timeSlots.find(s => s.slot_id === formData.slot_id);
+                              return ordSlot ? <p>{t('ordSelectTimeOfDay')}: {ordSlot.name} ({ordSlot.time})</p> : null;
+                            })()}
+                            <p>{t('ordFrom')}: {formData.special_ordination.start_date ? format(parseISO(formData.special_ordination.start_date), 'd. MMM yyyy', { locale }) : '—'}</p>
+                            {formData.special_ordination.end_date && (
+                              <p>{t('ordTo')}: {format(parseISO(formData.special_ordination.end_date), 'd. MMM yyyy', { locale })}</p>
+                            )}
+                            <p>{t('ordRepeat')}: {t(formData.special_ordination.repeat)}</p>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => { 
+                              setOrdData({ ...formData.special_ordination, time_of_day_id: formData.slot_id }); 
+                              setShowOrdination(true); 
+                            }}
+                            className="mt-2 text-xs text-emerald-400 hover:underline"
+                            data-testid="edit-ordination-btn"
+                          >
+                            {t('edit')}
+                          </button>
+                        </div>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => { 
+                            setOrdData({ start_date: null, end_date: null, repeat: 'daily', time_of_day_id: '' }); 
+                            setShowOrdination(true); 
+                          }}
+                          className="w-full py-3 rounded-xl border-2 border-dashed border-zinc-700 text-zinc-400 hover:border-emerald-500/50 hover:text-emerald-400 transition-all flex items-center justify-center gap-2 text-sm"
+                          data-testid="special-ordination-btn"
+                        >
+                          <FileText className="w-4 h-4" />
+                          {t('specialOrdination')}
+                        </button>
+                      )}
+                    </>
+                  )}
+                  
+                  {/* 3. Normal flow: Time slot + Day doses (hidden when special ordination is active) */}
+                  {!formData.special_ordination && (
+                    <div>
+                      <label className="block text-sm text-zinc-400 mb-2">{t('selectTimeSlot')}</label>
+                      <select
+                        value={formData.slot_id}
+                        onChange={e => setFormData(prev => ({ ...prev, slot_id: e.target.value }))}
+                        className="select-field"
+                        required
+                        data-testid="select-timeslot"
+                      >
+                        <option value="">{t('selectTimeSlot')}...</option>
+                        {timeSlots.map(slot => (
+                          <option key={slot.slot_id} value={slot.slot_id}>
+                            {slot.name} ({slot.time})
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
                 </>
               )}
               
@@ -501,7 +576,8 @@ export const Schedule = () => {
                 </div>
               )}
 
-              {(formData.medicine_id || editingEntry) && (
+              {/* Day doses - only shown when NOT using special ordination */}
+              {!formData.special_ordination && (formData.medicine_id || editingEntry) && (
                 <div>
                   <label className="block text-sm text-zinc-400 mb-2">
                     {language === 'da' ? 'Dosis per dag' : 'Dose per day'}
@@ -515,8 +591,8 @@ export const Schedule = () => {
                 </div>
               )}
               
-              {/* Special Ordination */}
-              {(formData.medicine_id || editingEntry) && (
+              {/* Special Ordination section for editing mode */}
+              {editingEntry && (
                 <>
                   {formData.special_ordination ? (
                     <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/30">
@@ -542,7 +618,7 @@ export const Schedule = () => {
                       </div>
                       <button
                         type="button"
-                        onClick={() => { setOrdData(formData.special_ordination); setShowOrdination(true); }}
+                        onClick={() => { setOrdData({ ...formData.special_ordination, time_of_day_id: '' }); setShowOrdination(true); }}
                         className="mt-2 text-xs text-emerald-400 hover:underline"
                       >
                         {t('edit')}
@@ -551,9 +627,9 @@ export const Schedule = () => {
                   ) : (
                     <button
                       type="button"
-                      onClick={() => { setOrdData({ start_date: null, end_date: null, repeat: 'daily' }); setShowOrdination(true); }}
+                      onClick={() => { setOrdData({ start_date: null, end_date: null, repeat: 'daily', time_of_day_id: '' }); setShowOrdination(true); }}
                       className="w-full py-3 rounded-xl border-2 border-dashed border-zinc-700 text-zinc-400 hover:border-emerald-500/50 hover:text-emerald-400 transition-all flex items-center justify-center gap-2 text-sm"
-                      data-testid="special-ordination-btn"
+                      data-testid="special-ordination-btn-edit"
                     >
                       <FileText className="w-4 h-4" />
                       {t('specialOrdination')}
@@ -572,7 +648,7 @@ export const Schedule = () => {
                 </button>
                 <button
                   type="submit"
-                  disabled={loading || (!editingEntry && (!formData.medicine_id || !formData.slot_id)) || Object.keys(formData.day_doses).length === 0}
+                  disabled={loading || (!editingEntry && (!formData.medicine_id || (!formData.special_ordination && (!formData.slot_id || Object.keys(formData.day_doses).length === 0)) || (formData.special_ordination && !formData.slot_id)))}
                   className="btn-primary flex-1"
                   data-testid="save-schedule-btn"
                 >
@@ -588,9 +664,35 @@ export const Schedule = () => {
       {/* Special Ordination Popup */}
       {showOrdination && (
         <div className="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-[60]" onClick={() => setShowOrdination(false)}>
-          <div className="glass-card w-full max-w-sm p-6 animate-fade-in" onClick={e => e.stopPropagation()} data-testid="ordination-modal">
+          <div className="glass-card w-full max-w-sm p-6 animate-fade-in max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()} data-testid="ordination-modal">
             <h3 className="text-lg font-semibold mb-1">{t('specialOrdination')}</h3>
-            <p className="text-sm text-zinc-400 mb-5">{language === 'da' ? 'Angiv periode og gentagelse' : 'Set period and repeat'}</p>
+            <p className="text-sm text-zinc-400 mb-5">{language === 'da' ? 'Angiv tidspunkt, periode og gentagelse' : 'Set time of day, period and repeat'}</p>
+            
+            {/* Time of Day selection */}
+            <div className="mb-4">
+              <label className="block text-sm text-zinc-400 mb-2">
+                <Clock className="w-3.5 h-3.5 inline mr-1" />
+                {t('ordSelectTimeOfDay')}
+              </label>
+              <div className="grid grid-cols-2 gap-2">
+                {timeSlots.map(slot => (
+                  <button
+                    key={slot.slot_id}
+                    type="button"
+                    onClick={() => setOrdData(prev => ({ ...prev, time_of_day_id: slot.slot_id }))}
+                    className={`py-2.5 px-3 rounded-xl text-sm font-medium transition-all ${
+                      ordData.time_of_day_id === slot.slot_id
+                        ? 'bg-emerald-500 text-white'
+                        : 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700'
+                    }`}
+                    data-testid={`ord-timeslot-${slot.slot_id}`}
+                  >
+                    {slot.name}
+                    <span className="block text-xs opacity-70">{slot.time}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
             
             {/* Start Date */}
             <div className="mb-4">
@@ -654,10 +756,18 @@ export const Schedule = () => {
               </button>
               <button
                 onClick={() => {
-                  setFormData(prev => ({ ...prev, special_ordination: { ...ordData } }));
+                  setFormData(prev => ({ 
+                    ...prev, 
+                    special_ordination: { 
+                      start_date: ordData.start_date, 
+                      end_date: ordData.end_date, 
+                      repeat: ordData.repeat 
+                    },
+                    slot_id: ordData.time_of_day_id
+                  }));
                   setShowOrdination(false);
                 }}
-                disabled={!ordData.start_date}
+                disabled={!ordData.start_date || !ordData.time_of_day_id}
                 className="btn-primary flex-1"
                 data-testid="save-ordination-btn"
               >
