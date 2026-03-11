@@ -780,7 +780,6 @@ def _is_ordination_active(ord_data, check_date):
         return check_date.day == start.day
     return days_diff == 0
 
-@api_router.get("/schedule/{user_id}/pdf")
 async def _build_pdf_bytes(user_id: str, week_offset: int = 0, lang: str = "da"):
     """Generate PDF bytes for a user's schedule."""
     user = await db.users.find_one({"user_id": user_id}, {"_id": 0})
