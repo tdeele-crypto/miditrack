@@ -1,12 +1,8 @@
 import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
-import { format, addDays, startOfWeek, isSameDay } from 'date-fns';
-import { 
-  Clock, 
-  AlertTriangle,
-  Printer,
-  Pill
-} from 'lucide-react';
+import { format, addDays, addWeeks, startOfWeek, isSameDay } from 'date-fns';
+import { da, enUS } from 'date-fns/locale';
+import { Clock, AlertTriangle, Printer, Pill, ChevronLeft, ChevronRight } from 'lucide-react';
 import { PrintSchedule } from './PrintSchedule';
 
 const DayNames = {
@@ -19,11 +15,12 @@ const DayKeys = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'];
 export const Dashboard = () => {
   const { t, language, user, medicines, timeSlots, schedule } = useApp();
   
+  const [currentWeekStart, setCurrentWeekStart] = useState(startOfWeek(new Date(), { weekStartsOn: 1 }));
   const [selectedDate, setSelectedDate] = useState(new Date());
-  const [weekStart] = useState(startOfWeek(new Date(), { weekStartsOn: 1 }));
   const [showPrintSchedule, setShowPrintSchedule] = useState(false);
   
   const dayKey = DayKeys[selectedDate.getDay()];
+  const locale = language === 'da' ? da : enUS;
   
   const extractMg = (dosageStr) => {
     if (!dosageStr) return null;
@@ -36,7 +33,6 @@ export const Dashboard = () => {
     return value;
   };
 
-  // Get today's schedule - just show what's planned
   const todaySchedule = timeSlots.map(slot => {
     const entries = schedule.filter(s => {
       const dayDoses = s.day_doses || {};
@@ -62,19 +58,26 @@ export const Dashboard = () => {
       };
     }).filter(e => e.medicine);
     
-    return {
-      ...slot,
-      medicines: medicines_for_slot
-    };
+    return { ...slot, medicines: medicines_for_slot };
   }).filter(slot => slot.medicines.length > 0);
   
-  const weekDays = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
+  const weekDays = Array.from({ length: 7 }, (_, i) => addDays(currentWeekStart, i));
+
+  const goToPrevWeek = () => setCurrentWeekStart(prev => addWeeks(prev, -1));
+  const goToNextWeek = () => setCurrentWeekStart(prev => addWeeks(prev, 1));
+  const goToCurrentWeek = () => {
+    setCurrentWeekStart(startOfWeek(new Date(), { weekStartsOn: 1 }));
+    setSelectedDate(new Date());
+  };
 
   const formatPillsDisplay = (whole, half) => {
     if (whole > 0 && half > 0) return `${whole}½`;
     if (half > 0) return `½`;
     return `${whole}`;
   };
+
+  const weekLabel = `${format(weekDays[0], 'd. MMM', { locale })} - ${format(weekDays[6], 'd. MMM yyyy', { locale })}`;
+  const isCurrentWeek = isSameDay(currentWeekStart, startOfWeek(new Date(), { weekStartsOn: 1 }));
   
   return (
     <div className="p-4 pb-24 max-w-2xl mx-auto animate-fade-in" data-testid="dashboard">
@@ -82,9 +85,7 @@ export const Dashboard = () => {
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-2xl font-bold mb-1">{t('dashboard')}</h1>
-          <p className="text-zinc-400">
-            {t('welcome')}, {user?.name}
-          </p>
+          <p className="text-zinc-400">{t('welcome')}, {user?.name}</p>
         </div>
         <button
           onClick={() => setShowPrintSchedule(true)}
@@ -96,9 +97,34 @@ export const Dashboard = () => {
         </button>
       </div>
       
-      {/* Week Days */}
+      {/* Week Navigation */}
       <div className="glass-card p-4 mb-6" data-testid="week-selector">
-        <div className="grid grid-cols-7 gap-2">
+        <div className="flex items-center justify-between mb-3">
+          <button 
+            onClick={goToPrevWeek} 
+            className="p-2 hover:bg-zinc-800 rounded-lg transition-colors"
+            data-testid="prev-week-btn"
+          >
+            <ChevronLeft className="w-5 h-5 text-zinc-400" />
+          </button>
+          <button 
+            onClick={goToCurrentWeek}
+            className={`text-sm font-medium px-3 py-1 rounded-lg transition-colors ${
+              isCurrentWeek ? 'text-emerald-400' : 'text-zinc-300 hover:bg-zinc-800'
+            }`}
+            data-testid="week-label"
+          >
+            {weekLabel}
+          </button>
+          <button 
+            onClick={goToNextWeek} 
+            className="p-2 hover:bg-zinc-800 rounded-lg transition-colors"
+            data-testid="next-week-btn"
+          >
+            <ChevronRight className="w-5 h-5 text-zinc-400" />
+          </button>
+        </div>
+        <div className="grid grid-cols-7 gap-1.5">
           {weekDays.map((day, i) => {
             const isSelected = isSameDay(day, selectedDate);
             const isToday = isSameDay(day, new Date());
@@ -116,8 +142,9 @@ export const Dashboard = () => {
                 }`}
                 data-testid={`day-btn-${i}`}
               >
-                <span className="text-sm font-bold text-inherit">
-                  {DayNames[language][day.getDay()]}
+                <span className="text-xs font-bold">{DayNames[language][day.getDay()]}</span>
+                <span className={`text-lg font-semibold ${isSelected ? 'text-white' : ''}`}>
+                  {format(day, 'd')}
                 </span>
               </button>
             );
@@ -149,7 +176,6 @@ export const Dashboard = () => {
                     <p className="text-sm text-zinc-400">{slot.time}</p>
                   </div>
                 </div>
-                
                 <div className="space-y-2">
                   {slot.medicines.map(item => (
                     <div 
@@ -172,7 +198,6 @@ export const Dashboard = () => {
                           <p className="text-xs text-zinc-500">{item.medicine?.dosage}</p>
                         </div>
                       </div>
-                      
                       <div className="text-right">
                         <p className="font-semibold text-emerald-400">
                           {formatPillsDisplay(item.pills_whole, item.pills_half)} {language === 'da' ? 'piller' : 'pills'}
@@ -209,16 +234,13 @@ export const Dashboard = () => {
                   <AlertTriangle className="w-5 h-5" />
                   <span className="font-medium">{med.name}</span>
                 </div>
-                <span className="text-sm">
-                  {med.days_until_empty} {t('daysUntilEmpty')}
-                </span>
+                <span className="text-sm">{med.days_until_empty} {t('daysUntilEmpty')}</span>
               </div>
             ))}
           </div>
         </div>
       )}
 
-      {/* Print Schedule Modal */}
       {showPrintSchedule && (
         <PrintSchedule onClose={() => setShowPrintSchedule(false)} />
       )}

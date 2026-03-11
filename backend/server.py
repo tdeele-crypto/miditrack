@@ -64,12 +64,20 @@ class MedicineCreate(BaseModel):
     dosage: str
     stock_count: int
     reminder_days_before: int = 7
+    start_date: Optional[str] = None
+    cancel_date: Optional[str] = None
+    end_date: Optional[str] = None
+    repeat_interval: Optional[str] = None  # "daily", "weekly", "monthly"
 
 class MedicineUpdate(BaseModel):
     name: Optional[str] = None
     dosage: Optional[str] = None
     stock_count: Optional[float] = None
     reminder_days_before: Optional[int] = None
+    start_date: Optional[str] = None
+    cancel_date: Optional[str] = None
+    end_date: Optional[str] = None
+    repeat_interval: Optional[str] = None
 
 class MedicineResponse(BaseModel):
     medicine_id: str
@@ -80,6 +88,10 @@ class MedicineResponse(BaseModel):
     reminder_days_before: int
     status: str
     days_until_empty: int
+    start_date: Optional[str] = None
+    cancel_date: Optional[str] = None
+    end_date: Optional[str] = None
+    repeat_interval: Optional[str] = None
     created_at: str
 
 class TimeSlotCreate(BaseModel):
@@ -333,6 +345,10 @@ async def create_medicine(user_id: str, medicine: MedicineCreate):
         "dosage": medicine.dosage,
         "stock_count": medicine.stock_count,
         "reminder_days_before": medicine.reminder_days_before,
+        "start_date": medicine.start_date,
+        "cancel_date": medicine.cancel_date,
+        "end_date": medicine.end_date,
+        "repeat_interval": medicine.repeat_interval,
         "created_at": datetime.now(timezone.utc).isoformat()
     }
     await db.medicines.insert_one(medicine_doc)
@@ -346,6 +362,10 @@ async def create_medicine(user_id: str, medicine: MedicineCreate):
         reminder_days_before=medicine.reminder_days_before,
         status=status,
         days_until_empty=days_until_empty,
+        start_date=medicine.start_date,
+        cancel_date=medicine.cancel_date,
+        end_date=medicine.end_date,
+        repeat_interval=medicine.repeat_interval,
         created_at=medicine_doc["created_at"]
     )
 
@@ -382,6 +402,10 @@ async def get_medicines(user_id: str):
             reminder_days_before=med["reminder_days_before"],
             status=status,
             days_until_empty=days_until_empty,
+            start_date=med.get("start_date"),
+            cancel_date=med.get("cancel_date"),
+            end_date=med.get("end_date"),
+            repeat_interval=med.get("repeat_interval"),
             created_at=med["created_at"]
         ))
     
@@ -389,7 +413,12 @@ async def get_medicines(user_id: str):
 
 @api_router.put("/medicines/{user_id}/{medicine_id}", response_model=MedicineResponse)
 async def update_medicine(user_id: str, medicine_id: str, update: MedicineUpdate):
-    update_dict = {k: v for k, v in update.model_dump().items() if v is not None}
+    update_dict = {}
+    for k, v in update.model_dump().items():
+        if v is not None:
+            update_dict[k] = v
+        elif k in ("cancel_date", "end_date", "repeat_interval", "start_date"):
+            update_dict[k] = None
     if not update_dict:
         raise HTTPException(status_code=400, detail="No fields to update")
     
@@ -427,6 +456,10 @@ async def update_medicine(user_id: str, medicine_id: str, update: MedicineUpdate
         reminder_days_before=med["reminder_days_before"],
         status=status,
         days_until_empty=days_until_empty,
+        start_date=med.get("start_date"),
+        cancel_date=med.get("cancel_date"),
+        end_date=med.get("end_date"),
+        repeat_interval=med.get("repeat_interval"),
         created_at=med["created_at"]
     )
 

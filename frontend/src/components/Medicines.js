@@ -1,18 +1,65 @@
 import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
+import { format, parseISO } from 'date-fns';
+import { da, enUS } from 'date-fns/locale';
+import { Calendar } from '../components/ui/calendar';
+import { Popover, PopoverContent, PopoverTrigger } from '../components/ui/popover';
 import { 
   Plus, 
-  Pill, 
   ThumbsUp, 
   AlertTriangle, 
   Trash2, 
   Edit3,
   X,
-  Package
+  Package,
+  CalendarIcon,
+  Repeat
 } from 'lucide-react';
 
+const DatePickerField = ({ label, value, onChange, locale, testId }) => {
+  const [open, setOpen] = useState(false);
+  const dateValue = value ? parseISO(value) : null;
+  
+  return (
+    <div>
+      <label className="block text-sm text-zinc-400 mb-2">
+        <CalendarIcon className="w-3.5 h-3.5 inline mr-1" />
+        {label}
+      </label>
+      <Popover open={open} onOpenChange={setOpen}>
+        <PopoverTrigger asChild>
+          <button
+            type="button"
+            className={`input-field w-full text-left flex items-center justify-between ${!value ? 'text-zinc-500' : ''}`}
+            data-testid={testId}
+          >
+            {value ? format(dateValue, 'd. MMM yyyy', { locale }) : '—'}
+            {value && (
+              <span 
+                onClick={e => { e.stopPropagation(); onChange(null); }} 
+                className="text-zinc-500 hover:text-red-400 ml-2"
+              >
+                <X className="w-4 h-4" />
+              </span>
+            )}
+          </button>
+        </PopoverTrigger>
+        <PopoverContent className="w-auto p-0 bg-zinc-900 border-zinc-700" align="start">
+          <Calendar
+            mode="single"
+            selected={dateValue}
+            onSelect={date => { onChange(date ? format(date, 'yyyy-MM-dd') : null); setOpen(false); }}
+            locale={locale}
+            className="rounded-md"
+          />
+        </PopoverContent>
+      </Popover>
+    </div>
+  );
+};
+
 export const Medicines = () => {
-  const { t, medicines, addMedicine, updateMedicine, deleteMedicine, loading } = useApp();
+  const { t, language, medicines, addMedicine, updateMedicine, deleteMedicine, loading } = useApp();
   const [showForm, setShowForm] = useState(false);
   const [editingMedicine, setEditingMedicine] = useState(null);
   const [showAddStock, setShowAddStock] = useState(null);
@@ -22,18 +69,29 @@ export const Medicines = () => {
     name: '',
     dosage: '',
     stock_count: 30,
-    reminder_days_before: 7
+    reminder_days_before: 7,
+    start_date: null,
+    cancel_date: null,
+    end_date: null,
+    repeat_interval: null
   });
+  
+  const locale = language === 'da' ? da : enUS;
   
   const resetForm = () => {
     setFormData({
       name: '',
       dosage: '',
       stock_count: 30,
-      reminder_days_before: 7
+      reminder_days_before: 7,
+      start_date: null,
+      cancel_date: null,
+      end_date: null,
+      repeat_interval: null
     });
     setEditingMedicine(null);
     setShowForm(false);
+    setShowDeleteConfirm(false);
   };
   
   const handleEdit = (medicine) => {
@@ -41,7 +99,11 @@ export const Medicines = () => {
       name: medicine.name,
       dosage: medicine.dosage,
       stock_count: medicine.stock_count,
-      reminder_days_before: medicine.reminder_days_before
+      reminder_days_before: medicine.reminder_days_before,
+      start_date: medicine.start_date || null,
+      cancel_date: medicine.cancel_date || null,
+      end_date: medicine.end_date || null,
+      repeat_interval: medicine.repeat_interval || null
     });
     setEditingMedicine(medicine);
     setShowForm(true);
@@ -266,6 +328,60 @@ export const Medicines = () => {
                     data-testid="medicine-reminder-input"
                   />
                 </div>
+              </div>
+              
+              {/* Date fields */}
+              <div className="space-y-3 pt-2">
+                <DatePickerField
+                  label={t('startDate')}
+                  value={formData.start_date}
+                  onChange={val => setFormData(prev => ({ ...prev, start_date: val }))}
+                  locale={locale}
+                  testId="medicine-start-date"
+                />
+                <DatePickerField
+                  label={t('cancelDate')}
+                  value={formData.cancel_date}
+                  onChange={val => setFormData(prev => ({ ...prev, cancel_date: val }))}
+                  locale={locale}
+                  testId="medicine-cancel-date"
+                />
+                <DatePickerField
+                  label={t('endDate')}
+                  value={formData.end_date}
+                  onChange={val => setFormData(prev => ({ ...prev, end_date: val }))}
+                  locale={locale}
+                  testId="medicine-end-date"
+                />
+                
+                {formData.end_date && (
+                  <div>
+                    <label className="block text-sm text-zinc-400 mb-2">
+                      <Repeat className="w-3.5 h-3.5 inline mr-1" />
+                      {t('repeatInterval')}
+                    </label>
+                    <div className="grid grid-cols-3 gap-2">
+                      {['daily', 'weekly', 'monthly'].map(interval => (
+                        <button
+                          key={interval}
+                          type="button"
+                          onClick={() => setFormData(prev => ({ 
+                            ...prev, 
+                            repeat_interval: prev.repeat_interval === interval ? null : interval 
+                          }))}
+                          className={`py-2 px-3 rounded-xl text-sm font-medium transition-all ${
+                            formData.repeat_interval === interval
+                              ? 'bg-emerald-500 text-white'
+                              : 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700'
+                          }`}
+                          data-testid={`repeat-${interval}`}
+                        >
+                          {t(interval)}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
               
               <div className="flex gap-3 pt-4">

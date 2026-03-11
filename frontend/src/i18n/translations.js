@@ -66,6 +66,13 @@ export const translations = {
     discontinue: "Seponer",
     addStock: "Tilføj antal",
     amount: "Antal",
+    startDate: "Startdato",
+    cancelDate: "Annulér dato",
+    endDate: "Slutdato",
+    repeatInterval: "Gentag",
+    daily: "Hver dag",
+    weekly: "Hver uge",
+    monthly: "Hver måned",
     
     // Schedule
     weeklySchedule: "Ugentligt skema",
@@ -186,6 +193,13 @@ export const translations = {
     discontinue: "Discontinue",
     addStock: "Add Stock",
     amount: "Amount",
+    startDate: "Start Date",
+    cancelDate: "Cancel Date",
+    endDate: "End Date",
+    repeatInterval: "Repeat",
+    daily: "Daily",
+    weekly: "Weekly",
+    monthly: "Monthly",
     
     // Schedule
     weeklySchedule: "Weekly Schedule",

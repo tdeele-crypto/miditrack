@@ -28,7 +28,8 @@ Medicine management app to track medicine stock, create weekly dosage schedules,
 - [x] Medicine CRUD with stock tracking and status indicators
 - [x] Weekly schedule with per-day dosing
 - [x] Time slots (Morning, Noon, Evening, Night)
-- [x] Dashboard with week overview
+- [x] Dashboard with week overview and **week navigation** (prev/next week + dates)
+- [x] Medicine form with **start date, cancel date, end date** (calendar picker) and **repeat interval** (daily/weekly/monthly)
 - [x] Printable weekly schedule view (mobile-responsive card layout + desktop table)
 - [x] PDF download (jsPDF, landscape A4)
 - [x] Dark theme
