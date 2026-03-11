@@ -33,30 +33,20 @@ export const PrintSchedule = ({ onClose }) => {
     const whole = dose.whole || 0;
     const half = dose.half || 0;
     const totalPills = whole + half * 0.5;
-    
     if (totalPills === 0) return { pills: '-', mg: '' };
-    
     let pillsStr = '';
-    if (whole > 0 && half > 0) {
-      pillsStr = `${whole}½`;
-    } else if (half > 0) {
-      pillsStr = half > 1 ? `${half}×½` : '½';
-    } else {
-      pillsStr = `${whole}`;
-    }
-    
+    if (whole > 0 && half > 0) pillsStr = `${whole}½`;
+    else if (half > 0) pillsStr = half > 1 ? `${half}×½` : '½';
+    else pillsStr = `${whole}`;
     const mg = mgPerPill ? (mgPerPill * totalPills) : null;
     const mgStr = mg ? (mg % 1 === 0 ? `${mg}mg` : `${mg.toFixed(1)}mg`) : '';
-    
     return { pills: pillsStr, mg: mgStr };
   };
 
-  // Get only time slots that have schedule entries
-  const usedTimeSlots = timeSlots.filter(slot => 
+  const usedTimeSlots = timeSlots.filter(slot =>
     schedule.some(s => s.slot_id === slot.slot_id && Object.keys(s.day_doses || {}).length > 0)
   );
 
-  // Group schedule by time slot
   const scheduleBySlot = usedTimeSlots.map(slot => {
     const entries = schedule.filter(s => s.slot_id === slot.slot_id);
     return {
@@ -74,39 +64,25 @@ export const PrintSchedule = ({ onClose }) => {
   }).filter(slot => slot.entries.length > 0);
 
   const generatePDF = async () => {
-    console.log('generatePDF called');
     setGenerating(true);
-    
     try {
-      console.log('Creating jsPDF instance...');
-      // Create PDF in landscape A4
-      const doc = new jsPDF({
-        orientation: 'landscape',
-        unit: 'mm',
-        format: 'a4'
-      });
-      console.log('jsPDF instance created');
-
+      const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
       const pageWidth = doc.internal.pageSize.getWidth();
       const pageHeight = doc.internal.pageSize.getHeight();
       const margin = 15;
       let y = margin;
 
-      // Header
       doc.setFontSize(20);
       doc.setFont('helvetica', 'bold');
       doc.text(language === 'da' ? 'UGESKEMA' : 'WEEKLY SCHEDULE', margin, y);
-      
       doc.setFontSize(12);
       doc.setFont('helvetica', 'normal');
       doc.text(user?.name || '', margin, y + 8);
-      
       const today = new Date();
-      const dateStr = today.toLocaleDateString(language === 'da' ? 'da-DK' : 'en-US');
+      const pdfDateStr = today.toLocaleDateString(language === 'da' ? 'da-DK' : 'en-US');
       doc.setFontSize(10);
-      doc.text(`${language === 'da' ? 'Dato' : 'Date'}: ${dateStr}`, pageWidth - margin - 40, y);
-      
-      // Green line under header
+      doc.text(`${language === 'da' ? 'Dato' : 'Date'}: ${pdfDateStr}`, pageWidth - margin - 40, y);
+
       y += 15;
       doc.setDrawColor(16, 185, 129);
       doc.setLineWidth(1);
@@ -117,35 +93,24 @@ export const PrintSchedule = ({ onClose }) => {
         doc.setFontSize(14);
         doc.text(language === 'da' ? 'Intet skema at vise' : 'No schedule to display', pageWidth / 2, y + 20, { align: 'center' });
       } else {
-        // Table settings
-        const colWidths = {
-          medicine: 50,
-          day: (pageWidth - margin * 2 - 50) / 7
-        };
+        const colWidths = { medicine: 50, day: (pageWidth - margin * 2 - 50) / 7 };
         const rowHeight = 12;
         const headerHeight = 10;
 
-        // Table header
         doc.setFillColor(240, 240, 240);
         doc.rect(margin, y, pageWidth - margin * 2, headerHeight, 'F');
-        
         doc.setFontSize(10);
         doc.setFont('helvetica', 'bold');
         doc.setTextColor(0, 0, 0);
         doc.text(language === 'da' ? 'Medicin' : 'Medicine', margin + 2, y + 7);
-        
         let x = margin + colWidths.medicine;
         DAYS.forEach(day => {
-          const label = language === 'da' ? day.short_da : day.short_en;
-          doc.text(label, x + colWidths.day / 2, y + 7, { align: 'center' });
+          doc.text(language === 'da' ? day.short_da : day.short_en, x + colWidths.day / 2, y + 7, { align: 'center' });
           x += colWidths.day;
         });
-        
         y += headerHeight;
 
-        // Draw table content
         scheduleBySlot.forEach(slot => {
-          // Slot header
           doc.setFillColor(16, 185, 129);
           doc.rect(margin, y, pageWidth - margin * 2, 8, 'F');
           doc.setTextColor(255, 255, 255);
@@ -154,23 +119,12 @@ export const PrintSchedule = ({ onClose }) => {
           y += 8;
           doc.setTextColor(0, 0, 0);
 
-          // Entries
           slot.entries.forEach(entry => {
-            // Check if we need a new page
-            if (y + rowHeight > pageHeight - margin) {
-              doc.addPage();
-              y = margin;
-            }
-
-            // Row background
+            if (y + rowHeight > pageHeight - margin) { doc.addPage(); y = margin; }
             doc.setFillColor(250, 250, 250);
             doc.rect(margin, y, pageWidth - margin * 2, rowHeight, 'F');
-            
-            // Border
             doc.setDrawColor(200, 200, 200);
             doc.rect(margin, y, pageWidth - margin * 2, rowHeight, 'S');
-
-            // Medicine name
             doc.setFont('helvetica', 'bold');
             doc.setFontSize(9);
             doc.text(entry.medicine_name, margin + 2, y + 5);
@@ -179,56 +133,42 @@ export const PrintSchedule = ({ onClose }) => {
             doc.setTextColor(100, 100, 100);
             doc.text(entry.medicine_dosage || '', margin + 2, y + 10);
             doc.setTextColor(0, 0, 0);
-
-            // Doses per day
-            let x = margin + colWidths.medicine;
+            let xd = margin + colWidths.medicine;
             DAYS.forEach(day => {
               const dose = entry.day_doses?.[day.key];
               const formatted = formatDose(dose, entry.mgPerPill);
-              
-              // Vertical line
               doc.setDrawColor(200, 200, 200);
-              doc.line(x, y, x, y + rowHeight);
-              
+              doc.line(xd, y, xd, y + rowHeight);
               if (dose) {
                 doc.setFont('helvetica', 'bold');
                 doc.setFontSize(11);
-                doc.text(formatted.pills, x + colWidths.day / 2, y + 5, { align: 'center' });
-                
+                doc.text(formatted.pills, xd + colWidths.day / 2, y + 5, { align: 'center' });
                 if (formatted.mg) {
                   doc.setFont('helvetica', 'normal');
                   doc.setFontSize(7);
                   doc.setTextColor(16, 185, 129);
-                  doc.text(formatted.mg, x + colWidths.day / 2, y + 10, { align: 'center' });
+                  doc.text(formatted.mg, xd + colWidths.day / 2, y + 10, { align: 'center' });
                   doc.setTextColor(0, 0, 0);
                 }
               } else {
                 doc.setTextColor(180, 180, 180);
-                doc.text('-', x + colWidths.day / 2, y + 7, { align: 'center' });
+                doc.text('-', xd + colWidths.day / 2, y + 7, { align: 'center' });
                 doc.setTextColor(0, 0, 0);
               }
-              
-              x += colWidths.day;
+              xd += colWidths.day;
             });
-
             y += rowHeight;
           });
-          
-          y += 3; // Space between slots
+          y += 3;
         });
       }
 
-      // Footer
       doc.setFontSize(8);
       doc.setTextColor(150, 150, 150);
       doc.text('MediTrack', margin, pageHeight - 10);
       doc.text(language === 'da' ? 'Hold dette skema opdateret' : 'Keep this schedule updated', pageWidth - margin, pageHeight - 10, { align: 'right' });
 
-      // Save and download
-      console.log('Saving PDF...');
       const fileName = `ugeskema_${(user?.name || 'medicin').replace(/\s+/g, '_')}_${new Date().toISOString().split('T')[0]}.pdf`;
-      
-      // Create blob and download
       const pdfBlob = doc.output('blob');
       const url = URL.createObjectURL(pdfBlob);
       const link = document.createElement('a');
@@ -238,9 +178,6 @@ export const PrintSchedule = ({ onClose }) => {
       link.click();
       document.body.removeChild(link);
       URL.revokeObjectURL(url);
-      
-      console.log('PDF downloaded as:', fileName);
-      
     } catch (err) {
       console.error('PDF generation error:', err);
       alert((language === 'da' ? 'Kunne ikke generere PDF: ' : 'Could not generate PDF: ') + err.message);
@@ -251,117 +188,161 @@ export const PrintSchedule = ({ onClose }) => {
 
   const today = new Date();
   const dateStr = today.toLocaleDateString(language === 'da' ? 'da-DK' : 'en-US', {
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric'
+    year: 'numeric', month: 'long', day: 'numeric'
   });
 
   return (
-    <div className="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-50 overflow-auto">
-      <div className="bg-[#0a0a0f] border border-zinc-800 rounded-2xl w-full max-w-6xl max-h-[90vh] overflow-auto">
-        {/* Controls */}
-        <div className="sticky top-0 bg-[#0a0a0f] border-b border-zinc-800 p-4 flex items-center justify-between z-10">
-          <h2 className="text-xl font-bold text-white">
+    <div className="fixed inset-0 bg-black/80 flex items-start justify-center z-50 overflow-auto" data-testid="print-schedule-modal">
+      <div className="bg-[#0a0a0f] border border-zinc-800 sm:rounded-2xl w-full max-w-6xl sm:my-4 min-h-screen sm:min-h-0 sm:max-h-[90vh] overflow-auto">
+        {/* Controls - responsive header */}
+        <div className="sticky top-0 bg-[#0a0a0f] border-b border-zinc-800 px-3 py-3 sm:px-4 sm:py-4 flex items-center justify-between z-10 gap-2">
+          <h2 className="text-base sm:text-xl font-bold text-white truncate" data-testid="print-schedule-title">
             {language === 'da' ? 'Ugeskema' : 'Weekly Schedule'}
           </h2>
-          <div className="flex gap-2">
+          <div className="flex gap-2 shrink-0">
             <button
               onClick={generatePDF}
               disabled={generating}
-              className="flex items-center gap-2 px-4 py-2 bg-emerald-500 text-white rounded-lg hover:bg-emerald-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              className="flex items-center gap-1.5 px-3 py-2 sm:px-4 sm:py-2 bg-emerald-500 text-white text-sm rounded-lg hover:bg-emerald-600 transition-colors disabled:opacity-50"
               data-testid="download-pdf-btn"
             >
-              {generating ? (
-                <Loader2 className="w-5 h-5 animate-spin" />
-              ) : (
-                <Download className="w-5 h-5" />
-              )}
-              {language === 'da' ? 'Download PDF' : 'Download PDF'}
+              {generating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
+              <span className="hidden xs:inline">PDF</span>
             </button>
             <button
               onClick={onClose}
               className="p-2 hover:bg-zinc-800 rounded-lg transition-colors"
+              data-testid="close-print-btn"
             >
               <X className="w-5 h-5 text-zinc-400" />
             </button>
           </div>
         </div>
 
-        {/* Preview Content */}
-        <div className="p-6 bg-[#12121a]">
-          {/* Header */}
-          <div className="flex justify-between items-center mb-6 pb-4 border-b-2 border-emerald-500">
+        {/* Content */}
+        <div className="p-3 sm:p-6 bg-[#12121a]">
+          {/* Header info */}
+          <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-4 sm:mb-6 pb-3 sm:pb-4 border-b-2 border-emerald-500">
             <div>
-              <h1 className="text-2xl font-bold text-white">
+              <h1 className="text-lg sm:text-2xl font-bold text-white">
                 {language === 'da' ? 'UGESKEMA' : 'WEEKLY SCHEDULE'}
               </h1>
-              <p className="text-zinc-400 mt-1">{user?.name}</p>
+              <p className="text-sm text-zinc-400 mt-0.5">{user?.name}</p>
             </div>
-            <p className="text-sm text-zinc-500">
+            <p className="text-xs sm:text-sm text-zinc-500 mt-1 sm:mt-0">
               {language === 'da' ? 'Dato' : 'Date'}: {dateStr}
             </p>
           </div>
 
           {scheduleBySlot.length === 0 ? (
-            <div className="text-center py-12 text-zinc-500">
+            <div className="text-center py-12 text-zinc-500 text-sm">
               {language === 'da' ? 'Intet skema at vise - tilføj medicin til skema først' : 'No schedule to display - add medicine to schedule first'}
             </div>
           ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full border-collapse">
-                <thead>
-                  <tr>
-                    <th className="border border-zinc-700 bg-zinc-800 text-white font-bold p-3 text-left min-w-[150px]">
-                      {language === 'da' ? 'Medicin' : 'Medicine'}
-                    </th>
-                    {DAYS.map(day => (
-                      <th key={day.key} className="border border-zinc-700 bg-zinc-800 text-white font-bold p-3 min-w-[80px]">
-                        {language === 'da' ? day.short_da : day.short_en}
+            <>
+              {/* Desktop table view - hidden on mobile */}
+              <div className="hidden md:block overflow-x-auto">
+                <table className="w-full border-collapse">
+                  <thead>
+                    <tr>
+                      <th className="border border-zinc-700 bg-zinc-800 text-white font-bold p-3 text-left min-w-[150px]">
+                        {language === 'da' ? 'Medicin' : 'Medicine'}
                       </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {scheduleBySlot.map(slot => (
-                    <React.Fragment key={slot.slot_id}>
-                      <tr>
-                        <td colSpan={8} className="bg-emerald-600 text-white font-bold p-3 text-left">
-                          {slot.name} ({slot.time})
-                        </td>
-                      </tr>
-                      {slot.entries.map(entry => (
-                        <tr key={entry.entry_id}>
-                          <td className="border border-zinc-700 bg-zinc-900 text-white font-semibold p-3 text-left">
-                            {entry.medicine_name}
-                            <div className="text-xs text-zinc-400 font-normal">{entry.medicine_dosage}</div>
-                          </td>
-                          {DAYS.map(day => {
-                            const dose = entry.day_doses?.[day.key];
-                            const formatted = formatDose(dose, entry.mgPerPill);
-                            return (
-                              <td key={day.key} className="border border-zinc-700 bg-zinc-900 text-center p-3">
-                                {dose ? (
-                                  <>
-                                    <div className="text-lg font-bold text-white">{formatted.pills}</div>
-                                    {formatted.mg && <div className="text-xs text-emerald-400 font-semibold">{formatted.mg}</div>}
-                                  </>
-                                ) : (
-                                  <span className="text-zinc-600">-</span>
-                                )}
-                              </td>
-                            );
-                          })}
-                        </tr>
+                      {DAYS.map(day => (
+                        <th key={day.key} className="border border-zinc-700 bg-zinc-800 text-white font-bold p-3 min-w-[80px]">
+                          {language === 'da' ? day.short_da : day.short_en}
+                        </th>
                       ))}
-                    </React.Fragment>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {scheduleBySlot.map(slot => (
+                      <React.Fragment key={slot.slot_id}>
+                        <tr>
+                          <td colSpan={8} className="bg-emerald-600 text-white font-bold p-3 text-left">
+                            {slot.name} ({slot.time})
+                          </td>
+                        </tr>
+                        {slot.entries.map(entry => (
+                          <tr key={entry.entry_id}>
+                            <td className="border border-zinc-700 bg-zinc-900 text-white font-semibold p-3 text-left">
+                              {entry.medicine_name}
+                              <div className="text-xs text-zinc-400 font-normal">{entry.medicine_dosage}</div>
+                            </td>
+                            {DAYS.map(day => {
+                              const dose = entry.day_doses?.[day.key];
+                              const formatted = formatDose(dose, entry.mgPerPill);
+                              return (
+                                <td key={day.key} className="border border-zinc-700 bg-zinc-900 text-center p-3">
+                                  {dose ? (
+                                    <>
+                                      <div className="text-lg font-bold text-white">{formatted.pills}</div>
+                                      {formatted.mg && <div className="text-xs text-emerald-400 font-semibold">{formatted.mg}</div>}
+                                    </>
+                                  ) : (
+                                    <span className="text-zinc-600">-</span>
+                                  )}
+                                </td>
+                              );
+                            })}
+                          </tr>
+                        ))}
+                      </React.Fragment>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Mobile card view */}
+              <div className="md:hidden space-y-3" data-testid="mobile-schedule-view">
+                {scheduleBySlot.map(slot => (
+                  <div key={slot.slot_id}>
+                    {/* Time slot header */}
+                    <div className="bg-emerald-600 text-white font-bold px-3 py-2 rounded-t-lg text-sm">
+                      {slot.name} ({slot.time})
+                    </div>
+                    
+                    <div className="space-y-px">
+                      {slot.entries.map(entry => (
+                        <div key={entry.entry_id} className="bg-zinc-900 border border-zinc-800 last:rounded-b-lg p-3">
+                          {/* Medicine name + dosage */}
+                          <div className="mb-2">
+                            <div className="text-white font-semibold text-sm leading-tight">{entry.medicine_name}</div>
+                            <div className="text-xs text-zinc-400">{entry.medicine_dosage}</div>
+                          </div>
+                          
+                          {/* 7-day dose grid */}
+                          <div className="grid grid-cols-7 gap-1">
+                            {DAYS.map(day => {
+                              const dose = entry.day_doses?.[day.key];
+                              const formatted = formatDose(dose, entry.mgPerPill);
+                              const hasDose = dose && (dose.whole > 0 || dose.half > 0);
+                              return (
+                                <div key={day.key} className={`text-center rounded-md py-1.5 ${hasDose ? 'bg-emerald-500/15 border border-emerald-500/30' : 'bg-zinc-800/50 border border-zinc-700/30'}`}>
+                                  <div className={`text-[10px] font-medium ${hasDose ? 'text-emerald-300' : 'text-zinc-500'}`}>
+                                    {language === 'da' ? day.short_da : day.short_en}
+                                  </div>
+                                  <div className={`text-sm font-bold leading-tight ${hasDose ? 'text-white' : 'text-zinc-600'}`}>
+                                    {formatted.pills}
+                                  </div>
+                                  {formatted.mg && (
+                                    <div className="text-[9px] text-emerald-400 leading-tight">{formatted.mg}</div>
+                                  )}
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </>
           )}
 
           {/* Footer */}
-          <div className="mt-6 pt-4 border-t border-zinc-800 flex justify-between text-xs text-zinc-500">
+          <div className="mt-4 sm:mt-6 pt-3 sm:pt-4 border-t border-zinc-800 flex justify-between text-xs text-zinc-500">
             <span>MediTrack</span>
             <span>{language === 'da' ? 'Hold dette skema opdateret' : 'Keep this schedule updated'}</span>
           </div>
