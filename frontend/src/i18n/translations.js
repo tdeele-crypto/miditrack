@@ -62,6 +62,8 @@ export const translations = {
     noMedicines: "Ingen medicin tilføjet",
     deleteMedicine: "Slet medicin",
     confirmDelete: "Er du sikker?",
+    addStock: "Tilføj antal",
+    amount: "Antal",
     
     // Schedule
     weeklySchedule: "Ugentligt skema",
@@ -178,6 +180,8 @@ export const translations = {
     noMedicines: "No medicines added",
     deleteMedicine: "Delete Medicine",
     confirmDelete: "Are you sure?",
+    addStock: "Add Stock",
+    amount: "Amount",
     
     // Schedule
     weeklySchedule: "Weekly Schedule",

@@ -15,6 +15,8 @@ export const Medicines = () => {
   const { t, medicines, addMedicine, updateMedicine, deleteMedicine, loading } = useApp();
   const [showForm, setShowForm] = useState(false);
   const [editingMedicine, setEditingMedicine] = useState(null);
+  const [showAddStock, setShowAddStock] = useState(null);
+  const [addStockAmount, setAddStockAmount] = useState('');
   const [formData, setFormData] = useState({
     name: '',
     dosage: '',
@@ -44,6 +46,26 @@ export const Medicines = () => {
     setShowForm(true);
   };
   
+  const handleAddStock = (medicine) => {
+    setShowAddStock(medicine);
+    setAddStockAmount('');
+  };
+  
+  const submitAddStock = async () => {
+    if (!showAddStock || !addStockAmount) return;
+    const amount = parseFloat(addStockAmount);
+    if (isNaN(amount) || amount <= 0) return;
+    try {
+      await updateMedicine(showAddStock.medicine_id, {
+        stock_count: showAddStock.stock_count + amount
+      });
+      setShowAddStock(null);
+      setAddStockAmount('');
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
@@ -72,21 +94,21 @@ export const Medicines = () => {
     switch (status) {
       case 'green':
         return (
-          <div className="status-green px-3 py-1 rounded-full flex items-center gap-2 text-sm">
+          <div className="status-green w-full py-2 rounded-xl flex items-center justify-center gap-2 text-sm font-medium">
             <ThumbsUp className="w-4 h-4" />
             {t('stockOk')}
           </div>
         );
       case 'yellow':
         return (
-          <div className="status-yellow px-3 py-1 rounded-full flex items-center gap-2 text-sm">
+          <div className="status-yellow w-full py-2 rounded-xl flex items-center justify-center gap-2 text-sm font-medium">
             <AlertTriangle className="w-4 h-4" />
             {daysUntilEmpty} {t('days')}
           </div>
         );
       case 'red':
         return (
-          <div className="status-red px-3 py-1 rounded-full flex items-center gap-2 text-sm">
+          <div className="status-red w-full py-2 rounded-xl flex items-center justify-center gap-2 text-sm font-medium">
             <AlertTriangle className="w-4 h-4" />
             {t('orderSoon')}
           </div>
@@ -132,12 +154,13 @@ export const Medicines = () => {
               className="glass-card p-4"
               data-testid={`medicine-card-${medicine.medicine_id}`}
             >
-              <div className="flex items-start justify-between mb-3">
-                <div>
-                  <h3 className="font-semibold text-lg">{medicine.name}</h3>
-                  <p className="text-zinc-400 text-sm">{medicine.dosage}</p>
-                  <div className="mt-1">{getStatusBadge(medicine.status, medicine.days_until_empty)}</div>
-                </div>
+              <div className="text-center mb-3">
+                <h3 className="font-semibold text-lg">{medicine.name}</h3>
+                <p className="text-zinc-400 text-sm">{medicine.dosage}</p>
+              </div>
+              
+              <div className="mb-3">
+                {getStatusBadge(medicine.status, medicine.days_until_empty)}
               </div>
               
               <div className="grid grid-cols-2 gap-4 mb-4">
@@ -162,6 +185,14 @@ export const Medicines = () => {
                 >
                   <Edit3 className="w-4 h-4" />
                   {t('edit')}
+                </button>
+                <button
+                  onClick={() => handleAddStock(medicine)}
+                  className="btn-secondary flex-1 py-2"
+                  data-testid={`add-stock-btn-${medicine.medicine_id}`}
+                >
+                  <Plus className="w-4 h-4" />
+                  {t('addStock')}
                 </button>
                 <button
                   onClick={() => handleDelete(medicine.medicine_id)}
@@ -263,6 +294,30 @@ export const Medicines = () => {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+      
+      {/* Add Stock Modal */}
+      {showAddStock && (
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center p-4 z-50" data-testid="add-stock-modal">
+          <div className="glass-card w-full max-w-sm p-6 animate-fade-in">
+            <h2 className="text-lg font-semibold mb-1">{t('addStock')}</h2>
+            <p className="text-sm text-zinc-400 mb-4">{showAddStock.name} — {showAddStock.stock_count} {t('pills')}</p>
+            <input
+              type="number"
+              value={addStockAmount}
+              onChange={e => setAddStockAmount(e.target.value)}
+              placeholder={t('amount')}
+              className="input-field mb-4"
+              min="1"
+              autoFocus
+              data-testid="add-stock-input"
+            />
+            <div className="flex gap-3">
+              <button onClick={() => setShowAddStock(null)} className="btn-secondary flex-1">{t('cancel')}</button>
+              <button onClick={submitAddStock} className="btn-primary flex-1" data-testid="confirm-add-stock-btn">{t('add')}</button>
+            </div>
           </div>
         </div>
       )}
