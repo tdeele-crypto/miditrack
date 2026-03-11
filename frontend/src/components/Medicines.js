@@ -133,20 +133,9 @@ export const Medicines = () => {
               data-testid={`medicine-card-${medicine.medicine_id}`}
             >
               <div className="flex items-start justify-between mb-3">
-                <div className="flex items-center gap-3">
-                  <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${
-                    medicine.status === 'green' ? 'bg-emerald-500/20' :
-                    medicine.status === 'yellow' ? 'bg-amber-500/20' : 'bg-red-500/20'
-                  }`}>
-                    <Pill className={`w-6 h-6 ${
-                      medicine.status === 'green' ? 'text-emerald-400' :
-                      medicine.status === 'yellow' ? 'text-amber-400' : 'text-red-400'
-                    }`} />
-                  </div>
-                  <div>
-                    <h3 className="font-semibold text-lg">{medicine.name}</h3>
-                    <p className="text-zinc-400 text-sm">{medicine.dosage}</p>
-                  </div>
+                <div>
+                  <h3 className="font-semibold text-lg">{medicine.name}</h3>
+                  <p className="text-zinc-400 text-sm">{medicine.dosage}</p>
                 </div>
                 {getStatusBadge(medicine.status, medicine.days_until_empty)}
               </div>
