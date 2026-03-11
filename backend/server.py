@@ -1,15 +1,17 @@
 from fastapi import FastAPI, APIRouter, HTTPException, Depends
+from fastapi.responses import StreamingResponse
 from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
 import os
 import logging
 import asyncio
+import io
 from pathlib import Path
 from pydantic import BaseModel, Field, EmailStr
 from typing import List, Optional
 import uuid
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timezone, timedelta, date
 import hashlib
 import secrets
 import resend
@@ -748,6 +750,174 @@ async def health_check():
     return {"status": "healthy"}
 
 # Include router and middleware
+
+# --- PDF Generation Endpoint ---
+from reportlab.lib import colors
+from reportlab.lib.pagesizes import A4, landscape
+from reportlab.lib.units import mm
+from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+
+def _is_ordination_active(ord_data, check_date):
+    if not ord_data or not ord_data.get('start_date'):
+        return False
+    start = datetime.strptime(str(ord_data['start_date'])[:10], '%Y-%m-%d').date()
+    if check_date < start:
+        return False
+    if ord_data.get('end_date'):
+        end = datetime.strptime(str(ord_data['end_date'])[:10], '%Y-%m-%d').date()
+        if check_date > end:
+            return False
+    repeat = ord_data.get('repeat', '')
+    days_diff = (check_date - start).days
+    if repeat == 'daily':
+        return True
+    elif repeat == 'weekly':
+        return check_date.weekday() == start.weekday()
+    elif repeat == 'biweekly':
+        return check_date.weekday() == start.weekday() and (days_diff // 7) % 2 == 0
+    elif repeat == 'monthly':
+        return check_date.day == start.day
+    return days_diff == 0
+
+@api_router.get("/schedule/{user_id}/pdf")
+async def generate_schedule_pdf(user_id: str, week_offset: int = 0, lang: str = "da"):
+    user = await db.users.find_one({"user_id": user_id}, {"_id": 0})
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    today = date.today()
+    # Monday of current week + offset
+    monday = today - timedelta(days=today.weekday()) + timedelta(weeks=week_offset)
+    week_dates = [monday + timedelta(days=i) for i in range(7)]
+    import datetime as dt_module
+    week_num = monday.isocalendar()[1]
+
+    day_keys = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun']
+    day_names_da = ['Man', 'Tir', 'Ons', 'Tor', 'Fre', 'Lør', 'Søn']
+    day_names_en = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
+    day_names = day_names_da if lang == 'da' else day_names_en
+
+    slots = await db.time_slots.find({"user_id": user_id}, {"_id": 0}).sort("order", 1).to_list(100)
+    entries = await db.schedule_entries.find({"user_id": user_id}, {"_id": 0}).to_list(500)
+    meds_list = await db.medicines.find({"user_id": user_id}, {"_id": 0}).to_list(500)
+    meds_map = {m['medicine_id']: m for m in meds_list}
+
+    buffer = io.BytesIO()
+    page_w, page_h = landscape(A4)
+    doc = SimpleDocTemplate(buffer, pagesize=landscape(A4), leftMargin=15*mm, rightMargin=15*mm, topMargin=15*mm, bottomMargin=10*mm)
+    styles = getSampleStyleSheet()
+    elements = []
+
+    title_text = f"{'UGESKEMA' if lang == 'da' else 'WEEKLY SCHEDULE'} - {'Uge' if lang == 'da' else 'Week'} {week_num}"
+    elements.append(Paragraph(title_text, ParagraphStyle('Title', parent=styles['Title'], fontSize=18, textColor=colors.HexColor('#10b981'))))
+    elements.append(Paragraph(user.get('name', ''), styles['Normal']))
+    date_range = f"{week_dates[0].strftime('%d/%m')} - {week_dates[6].strftime('%d/%m/%Y')}"
+    elements.append(Paragraph(date_range, ParagraphStyle('DateRange', parent=styles['Normal'], fontSize=9, textColor=colors.grey)))
+    elements.append(Spacer(1, 6*mm))
+
+    col_widths = [45*mm] + [((page_w - 30*mm - 45*mm) / 7)] * 7
+    med_style = ParagraphStyle('MedName', parent=styles['Normal'], fontSize=8, leading=10)
+    cell_style = ParagraphStyle('Cell', parent=styles['Normal'], fontSize=10, alignment=1, leading=12)
+    cell_mg = ParagraphStyle('CellMg', parent=styles['Normal'], fontSize=7, alignment=1, textColor=colors.HexColor('#10b981'))
+
+    for slot in slots:
+        slot_entries = [e for e in entries if e.get('slot_id') == slot['slot_id']]
+        if not slot_entries:
+            continue
+
+        # Slot header
+        header_data = [[Paragraph(f"<b>{slot['name']} ({slot['time']})</b>", ParagraphStyle('SlotH', parent=styles['Normal'], fontSize=10, textColor=colors.white))] + [''] * 7]
+        ht = Table(header_data, colWidths=col_widths)
+        ht.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#10b981')),
+            ('SPAN', (0, 0), (-1, 0)),
+            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+            ('TOPPADDING', (0, 0), (-1, -1), 3),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 3),
+        ]))
+        elements.append(ht)
+
+        # Day headers
+        day_header = [Paragraph(f"<b>{'Medicin' if lang == 'da' else 'Medicine'}</b>", med_style)]
+        for i, dn in enumerate(day_names):
+            day_header.append(Paragraph(f"<b>{dn}</b><br/><font size=7>{week_dates[i].strftime('%d/%m')}</font>", ParagraphStyle('DH', parent=styles['Normal'], fontSize=9, alignment=1, leading=11)))
+        dh_table = Table([day_header], colWidths=col_widths)
+        dh_table.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#f0f0f0')),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.black),
+            ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#cccccc')),
+            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+            ('TOPPADDING', (0, 0), (-1, -1), 2),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 2),
+        ]))
+        elements.append(dh_table)
+
+        rows = []
+        for entry in slot_entries:
+            med = meds_map.get(entry.get('medicine_id'), {})
+            med_name = med.get('name', entry.get('medicine_name', '?'))
+            med_dosage = med.get('dosage', entry.get('medicine_dosage', ''))
+            mg_match = None
+            import re
+            mg_search = re.search(r'(\d+(?:[.,]\d+)?)\s*(mg|g|mcg)', med_dosage, re.I)
+            mg_per_pill = None
+            if mg_search:
+                mg_per_pill = float(mg_search.group(1).replace(',', '.'))
+                if mg_search.group(2).lower() == 'g':
+                    mg_per_pill *= 1000
+
+            row = [Paragraph(f"<b>{med_name}</b><br/><font size=7 color='grey'>{med_dosage}</font>", med_style)]
+            for i, dk in enumerate(day_keys):
+                dose = (entry.get('day_doses') or {}).get(dk)
+                if not dose and entry.get('special_ordination') and _is_ordination_active(entry['special_ordination'], week_dates[i]):
+                    dose = {'whole': 1, 'half': 0}
+                if dose and ((dose.get('whole', 0) or 0) > 0 or (dose.get('half', 0) or 0) > 0):
+                    w = dose.get('whole', 0) or 0
+                    h = dose.get('half', 0) or 0
+                    pills_str = ''
+                    if w > 0 and h > 0: pills_str = f"{w}½"
+                    elif h > 0: pills_str = "½" if h == 1 else f"{h}×½"
+                    else: pills_str = str(w)
+                    total = w + h * 0.5
+                    mg_str = ''
+                    if mg_per_pill:
+                        mg_val = mg_per_pill * total
+                        mg_str = f"{int(mg_val)}mg" if mg_val == int(mg_val) else f"{mg_val:.1f}mg"
+                    cell_content = f"<b>{pills_str}</b>"
+                    if mg_str:
+                        cell_content += f"<br/><font size=7 color='#10b981'>{mg_str}</font>"
+                    row.append(Paragraph(cell_content, cell_style))
+                else:
+                    row.append(Paragraph("<font color='#cccccc'>-</font>", cell_style))
+            rows.append(row)
+
+        if rows:
+            t = Table(rows, colWidths=col_widths)
+            t.setStyle(TableStyle([
+                ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#cccccc')),
+                ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+                ('TOPPADDING', (0, 0), (-1, -1), 4),
+                ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
+                ('ROWBACKGROUNDS', (0, 0), (-1, -1), [colors.white, colors.HexColor('#fafafa')]),
+            ]))
+            elements.append(t)
+        elements.append(Spacer(1, 4*mm))
+
+    elements.append(Spacer(1, 3*mm))
+    elements.append(Paragraph("MediTrack", ParagraphStyle('Footer', parent=styles['Normal'], fontSize=8, textColor=colors.grey)))
+
+    doc.build(elements)
+    buffer.seek(0)
+
+    filename = f"ugeskema_uge{week_num}.pdf"
+    return StreamingResponse(
+        buffer,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f"inline; filename={filename}"}
+    )
+
+
 app.include_router(api_router)
 
 app.add_middleware(

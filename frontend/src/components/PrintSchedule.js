@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { Printer, X, Loader2, ChevronLeft, ChevronRight } from 'lucide-react';
-import { jsPDF } from 'jspdf';
 import { startOfWeek, addDays, addWeeks, format, getISOWeek, parseISO, differenceInCalendarDays, differenceInCalendarWeeks, getDate, isSameDay } from 'date-fns';
 import { da, enUS } from 'date-fns/locale';
+
+const API_URL = process.env.REACT_APP_BACKEND_URL;
 
 const DAYS = [
   { key: 'mon', da: 'Mandag', en: 'Monday', short_da: 'Man', short_en: 'Mon', idx: 0 },
@@ -110,135 +111,16 @@ export const PrintSchedule = ({ onClose }) => {
 
   const weekLabel = `${format(weekDates[0], 'd. MMM', { locale })} - ${format(weekDates[6], 'd. MMM yyyy', { locale })}`;
 
+  // Calculate week offset from current week
+  const currentMonday = startOfWeek(new Date(), { weekStartsOn: 1 });
+  const weekOffset = Math.round((weekStart - currentMonday) / (7 * 24 * 60 * 60 * 1000));
+
   const generatePDF = () => {
     setGenerating(true);
-    try {
-      const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
-      const pageWidth = doc.internal.pageSize.getWidth();
-      const pageHeight = doc.internal.pageSize.getHeight();
-      const margin = 15;
-      let y = margin;
-
-      // Title with week number
-      doc.setFontSize(20);
-      doc.setFont('helvetica', 'bold');
-      doc.text(`${language === 'da' ? 'UGESKEMA' : 'WEEKLY SCHEDULE'} - ${language === 'da' ? 'Uge' : 'Week'} ${weekNumber}`, margin, y);
-      doc.setFontSize(12);
-      doc.setFont('helvetica', 'normal');
-      doc.text(user?.name || '', margin, y + 8);
-      doc.setFontSize(10);
-      doc.text(weekLabel, pageWidth - margin, y, { align: 'right' });
-
-      y += 15;
-      doc.setDrawColor(16, 185, 129);
-      doc.setLineWidth(1);
-      doc.line(margin, y, pageWidth - margin, y);
-      y += 10;
-
-      if (scheduleBySlot.length === 0) {
-        doc.setFontSize(14);
-        doc.text(language === 'da' ? 'Intet skema at vise' : 'No schedule to display', pageWidth / 2, y + 20, { align: 'center' });
-      } else {
-        const colWidths = { medicine: 50, day: (pageWidth - margin * 2 - 50) / 7 };
-        const rowHeight = 12;
-        const headerHeight = 14;
-
-        // Header with day names + dates
-        doc.setFillColor(240, 240, 240);
-        doc.rect(margin, y, pageWidth - margin * 2, headerHeight, 'F');
-        doc.setFontSize(10);
-        doc.setFont('helvetica', 'bold');
-        doc.setTextColor(0, 0, 0);
-        doc.text(language === 'da' ? 'Medicin' : 'Medicine', margin + 2, y + 6);
-        let x = margin + colWidths.medicine;
-        DAYS.forEach((day, i) => {
-          const date = weekDates[i];
-          const dayName = language === 'da' ? day.short_da : day.short_en;
-          const dateStr = format(date, 'd/M');
-          doc.setFontSize(10);
-          doc.setFont('helvetica', 'bold');
-          doc.text(dayName, x + colWidths.day / 2, y + 6, { align: 'center' });
-          doc.setFontSize(7);
-          doc.setFont('helvetica', 'normal');
-          doc.text(dateStr, x + colWidths.day / 2, y + 11, { align: 'center' });
-          x += colWidths.day;
-        });
-        y += headerHeight;
-
-        scheduleBySlot.forEach(slot => {
-          doc.setFillColor(16, 185, 129);
-          doc.rect(margin, y, pageWidth - margin * 2, 8, 'F');
-          doc.setTextColor(255, 255, 255);
-          doc.setFont('helvetica', 'bold');
-          doc.setFontSize(10);
-          doc.text(`${slot.name} (${slot.time})`, margin + 2, y + 6);
-          y += 8;
-          doc.setTextColor(0, 0, 0);
-
-          slot.entries.forEach(entry => {
-            if (y + rowHeight > pageHeight - margin) { doc.addPage(); y = margin; }
-            doc.setFillColor(250, 250, 250);
-            doc.rect(margin, y, pageWidth - margin * 2, rowHeight, 'F');
-            doc.setDrawColor(200, 200, 200);
-            doc.rect(margin, y, pageWidth - margin * 2, rowHeight, 'S');
-            doc.setFont('helvetica', 'bold');
-            doc.setFontSize(9);
-            doc.text(entry.medicine_name, margin + 2, y + 5);
-            doc.setFont('helvetica', 'normal');
-            doc.setFontSize(7);
-            doc.setTextColor(100, 100, 100);
-            doc.text(entry.medicine_dosage || '', margin + 2, y + 10);
-            doc.setTextColor(0, 0, 0);
-            let xd = margin + colWidths.medicine;
-            DAYS.forEach(day => {
-              const dose = entry.weekDayDoses?.[day.key];
-              const formatted = formatDose(dose, entry.mgPerPill);
-              doc.setDrawColor(200, 200, 200);
-              doc.line(xd, y, xd, y + rowHeight);
-              if (dose) {
-                doc.setFont('helvetica', 'bold');
-                doc.setFontSize(11);
-                doc.text(formatted.pills, xd + colWidths.day / 2, y + 5, { align: 'center' });
-                if (formatted.mg) {
-                  doc.setFont('helvetica', 'normal');
-                  doc.setFontSize(7);
-                  doc.setTextColor(16, 185, 129);
-                  doc.text(formatted.mg, xd + colWidths.day / 2, y + 10, { align: 'center' });
-                  doc.setTextColor(0, 0, 0);
-                }
-              } else {
-                doc.setTextColor(180, 180, 180);
-                doc.text('-', xd + colWidths.day / 2, y + 7, { align: 'center' });
-                doc.setTextColor(0, 0, 0);
-              }
-              xd += colWidths.day;
-            });
-            y += rowHeight;
-          });
-          y += 3;
-        });
-      }
-
-      doc.setFontSize(8);
-      doc.setTextColor(150, 150, 150);
-      doc.text('MediTrack', margin, pageHeight - 10);
-      doc.text(language === 'da' ? 'Hold dette skema opdateret' : 'Keep this schedule updated', pageWidth - margin, pageHeight - 10, { align: 'right' });
-
-      const fileName = `ugeskema_uge${weekNumber}.pdf`;
-      const pdfDataUri = doc.output('datauristring');
-      const link = document.createElement('a');
-      link.href = pdfDataUri;
-      link.download = fileName;
-      link.style.display = 'none';
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-    } catch (err) {
-      console.error('PDF generation error:', err);
-      alert((language === 'da' ? 'Kunne ikke generere PDF: ' : 'Could not generate PDF: ') + err.message);
-    } finally {
-      setGenerating(false);
-    }
+    // Open server-generated PDF directly in browser
+    const url = `${API_URL}/api/schedule/${user.user_id}/pdf?week_offset=${weekOffset}&lang=${language}`;
+    window.open(url, '_blank');
+    setGenerating(false);
   };
 
   return (
