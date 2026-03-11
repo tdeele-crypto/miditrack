@@ -1,12 +1,8 @@
 import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
-import { Printer, X, ChevronLeft, ChevronRight, Mail, Loader2 } from 'lucide-react';
+import { Printer, X, ChevronLeft, ChevronRight } from 'lucide-react';
 import { startOfWeek, addDays, addWeeks, format, getISOWeek, parseISO, differenceInCalendarDays, differenceInCalendarWeeks, getDate, isSameDay } from 'date-fns';
 import { da, enUS } from 'date-fns/locale';
-
-import axios from 'axios';
-
-const API_URL = process.env.REACT_APP_BACKEND_URL;
 
 const DAYS = [
   { key: 'mon', da: 'Mandag', en: 'Monday', short_da: 'Man', short_en: 'Mon', idx: 0 },
@@ -21,8 +17,6 @@ const DAYS = [
 export const PrintSchedule = ({ onClose }) => {
   const { user, language, medicines, timeSlots, schedule } = useApp();
   const [weekStart, setWeekStart] = useState(startOfWeek(new Date(), { weekStartsOn: 1 }));
-  const [sending, setSending] = useState(false);
-  const [emailMsg, setEmailMsg] = useState('');
   const locale = language === 'da' ? da : enUS;
 
   const weekDates = DAYS.map((_, i) => addDays(weekStart, i));
@@ -114,55 +108,26 @@ export const PrintSchedule = ({ onClose }) => {
 
   const weekLabel = `${format(weekDates[0], 'd. MMM', { locale })} - ${format(weekDates[6], 'd. MMM yyyy', { locale })}`;
 
-  // Calculate week offset from current week
-  const currentMonday = startOfWeek(new Date(), { weekStartsOn: 1 });
-  const weekOffset = Math.round((weekStart - currentMonday) / (7 * 24 * 60 * 60 * 1000));
-  const pdfUrl = user ? `${API_URL}/api/schedule/${user.user_id}/pdf?week_offset=${weekOffset}&lang=${language}` : '#';
-
-  const sendPdfEmail = async () => {
-    setSending(true);
-    setEmailMsg('');
-    try {
-      await axios.post(`${API_URL}/api/schedule/${user.user_id}/email-pdf`, {
-        week_offset: weekOffset,
-        lang: language
-      });
-      setEmailMsg(language === 'da' ? `Sendt til ${user.email}` : `Sent to ${user.email}`);
-    } catch (err) {
-      setEmailMsg(language === 'da' ? 'Kunne ikke sende email' : 'Could not send email');
-    } finally {
-      setSending(false);
-    }
-  };
-
   return (
     <div className="fixed inset-0 bg-black/80 flex items-start justify-center z-50 overflow-auto" data-testid="print-schedule-modal">
       <div className="bg-[#0a0a0f] border border-zinc-800 sm:rounded-2xl w-full max-w-6xl sm:my-4 min-h-screen sm:min-h-0 sm:max-h-[90vh] overflow-auto">
         {/* Controls */}
-        <div className="sticky top-0 bg-[#0a0a0f] border-b border-zinc-800 px-3 py-3 sm:px-4 sm:py-4 flex items-center justify-between z-10 gap-2">
+        <div className="sticky top-0 bg-[#0a0a0f] border-b border-zinc-800 px-3 py-3 sm:px-4 sm:py-4 flex items-center justify-between z-10 gap-2 print:hidden">
           <h2 className="text-base sm:text-xl font-bold text-white truncate" data-testid="print-schedule-title">
             {language === 'da' ? 'Ugeskema' : 'Weekly Schedule'}
           </h2>
           <div className="flex gap-2 shrink-0">
             <button
-              onClick={sendPdfEmail}
-              disabled={sending}
-              className="flex items-center gap-1.5 px-3 py-2 sm:px-4 sm:py-2 bg-emerald-500 text-white text-sm rounded-lg hover:bg-emerald-600 transition-colors disabled:opacity-50"
-              data-testid="email-pdf-btn"
-            >
-              {sending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Mail className="w-4 h-4" />}
-              <span className="hidden xs:inline">Email</span>
-            </button>
-            <button
-              onClick={() => { window.location.href = pdfUrl; }}
-              className="flex items-center gap-1.5 px-3 py-2 sm:px-4 sm:py-2 bg-zinc-700 text-white text-sm rounded-lg hover:bg-zinc-600 transition-colors"
-              data-testid="download-pdf-btn"
+              onClick={() => window.print()}
+              className="flex items-center gap-1.5 px-3 py-2 sm:px-4 sm:py-2 bg-emerald-500 text-white text-sm rounded-lg hover:bg-emerald-600 transition-colors"
+              data-testid="print-btn"
             >
               <Printer className="w-4 h-4" />
+              <span className="hidden xs:inline">{language === 'da' ? 'Udskriv' : 'Print'}</span>
             </button>
             <button
               onClick={onClose}
-              className="p-2 hover:bg-zinc-800 rounded-lg transition-colors"
+              className="p-2 hover:bg-zinc-800 rounded-lg transition-colors print:hidden"
               data-testid="close-print-btn"
             >
               <X className="w-5 h-5 text-zinc-400" />
@@ -207,12 +172,6 @@ export const PrintSchedule = ({ onClose }) => {
               </button>
             </div>
           </div>
-
-          {emailMsg && (
-            <p className={`text-sm px-3 sm:px-6 pb-2 ${emailMsg.includes('Sendt') || emailMsg.includes('Sent') ? 'text-emerald-400' : 'text-red-400'}`} data-testid="email-status">
-              {emailMsg}
-            </p>
-          )}
 
           {scheduleBySlot.length === 0 ? (
             <div className="text-center py-12 text-zinc-500 text-sm">

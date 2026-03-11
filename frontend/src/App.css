@@ -1,1 +1,138 @@
 /* App.css - Additional app styles */
+
+/* Print styles */
+@media print {
+  /* Hide everything except the print schedule content */
+  body {
+    background: white !important;
+    color: black !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  /* Hide the main app container */
+  [data-testid="app-container"] > *:not([data-testid="print-schedule-modal"]) {
+    display: none !important;
+  }
+
+  /* Hide navigation */
+  [data-testid="navigation"] {
+    display: none !important;
+  }
+
+  /* Hide non-print elements in the print modal */
+  .print\\:hidden,
+  [data-testid="close-print-btn"],
+  [data-testid="print-btn"],
+  [data-testid="print-week-nav"] {
+    display: none !important;
+  }
+
+  /* Style the print modal for paper */
+  [data-testid="print-schedule-modal"] {
+    position: static !important;
+    background: white !important;
+    overflow: visible !important;
+  }
+
+  [data-testid="print-schedule-modal"] > div {
+    background: white !important;
+    border: none !important;
+    max-height: none !important;
+    overflow: visible !important;
+    min-height: auto !important;
+  }
+
+  /* Controls bar */
+  [data-testid="print-schedule-modal"] .sticky {
+    position: static !important;
+    background: white !important;
+    border: none !important;
+  }
+
+  /* Content area */
+  [data-testid="print-schedule-modal"] .bg-\\[\\#12121a\\] {
+    background: white !important;
+  }
+
+  /* Title */
+  [data-testid="print-week-title"] {
+    color: black !important;
+    font-size: 20pt !important;
+  }
+
+  /* Table styles for print */
+  table {
+    width: 100% !important;
+  }
+
+  th, td {
+    border: 1px solid #333 !important;
+    padding: 6px !important;
+  }
+
+  th {
+    background: #f0f0f0 !important;
+    color: black !important;
+    -webkit-print-color-adjust: exact;
+  }
+
+  /* Slot headers - keep green */
+  td[colspan="8"] {
+    background: #10b981 !important;
+    color: white !important;
+    -webkit-print-color-adjust: exact;
+  }
+
+  /* Medicine names */
+  .text-white {
+    color: black !important;
+  }
+
+  .text-zinc-400, .text-zinc-500 {
+    color: #666 !important;
+  }
+
+  .text-emerald-400, .text-emerald-300 {
+    color: #10b981 !important;
+    -webkit-print-color-adjust: exact;
+  }
+
+  /* Border colors */
+  .border-emerald-500 {
+    border-color: #10b981 !important;
+  }
+
+  .border-zinc-700, .border-zinc-800 {
+    border-color: #ccc !important;
+  }
+
+  /* Backgrounds */
+  .bg-zinc-800, .bg-zinc-900, .bg-\\[\\#0a0a0f\\] {
+    background: white !important;
+  }
+
+  .bg-emerald-600, .bg-emerald-500 {
+    background: #10b981 !important;
+    -webkit-print-color-adjust: exact;
+  }
+
+  /* Mobile card view - show on print too */
+  .md\\:hidden {
+    display: block !important;
+  }
+  .hidden.md\\:block {
+    display: block !important;
+  }
+
+  /* Footer */
+  .border-t {
+    border-color: #ccc !important;
+  }
+
+  /* Page setup */
+  @page {
+    size: landscape A4;
+    margin: 10mm;
+  }
+}
