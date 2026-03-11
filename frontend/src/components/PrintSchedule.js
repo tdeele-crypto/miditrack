@@ -115,25 +115,19 @@ export const PrintSchedule = ({ onClose }) => {
   const currentMonday = startOfWeek(new Date(), { weekStartsOn: 1 });
   const weekOffset = Math.round((weekStart - currentMonday) / (7 * 24 * 60 * 60 * 1000));
 
-  const generatePDF = async () => {
+  const generatePDF = () => {
     setGenerating(true);
-    try {
-      const url = `${API_URL}/api/schedule/${user.user_id}/pdf?week_offset=${weekOffset}&lang=${language}`;
-      const response = await fetch(url);
-      const blob = await response.blob();
-      const blobUrl = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = blobUrl;
-      link.download = `ugeskema_uge${weekNumber}.pdf`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      URL.revokeObjectURL(blobUrl);
-    } catch (err) {
-      console.error('PDF download error:', err);
-    } finally {
-      setGenerating(false);
+    const url = `${API_URL}/api/schedule/${user.user_id}/pdf?week_offset=${weekOffset}&lang=${language}`;
+    // Use hidden iframe to trigger download - most reliable method
+    let iframe = document.getElementById('pdf-download-frame');
+    if (!iframe) {
+      iframe = document.createElement('iframe');
+      iframe.id = 'pdf-download-frame';
+      iframe.style.display = 'none';
+      document.body.appendChild(iframe);
     }
+    iframe.src = url;
+    setTimeout(() => setGenerating(false), 2000);
   };
 
   return (
