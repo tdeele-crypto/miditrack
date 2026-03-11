@@ -17,6 +17,7 @@ export const Medicines = () => {
   const [editingMedicine, setEditingMedicine] = useState(null);
   const [showAddStock, setShowAddStock] = useState(null);
   const [addStockAmount, setAddStockAmount] = useState('');
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [formData, setFormData] = useState({
     name: '',
     dosage: '',
@@ -81,12 +82,10 @@ export const Medicines = () => {
   };
   
   const handleDelete = async (medicineId) => {
-    if (window.confirm(t('confirmDelete'))) {
-      try {
-        await deleteMedicine(medicineId);
-      } catch (err) {
-        console.error(err);
-      }
+    try {
+      await deleteMedicine(medicineId);
+    } catch (err) {
+      console.error(err);
     }
   };
   
@@ -194,13 +193,6 @@ export const Medicines = () => {
                   <Plus className="w-4 h-4" />
                   {t('addStock')}
                 </button>
-                <button
-                  onClick={() => handleDelete(medicine.medicine_id)}
-                  className="btn-danger py-2 px-4"
-                  data-testid={`delete-btn-${medicine.medicine_id}`}
-                >
-                  <Trash2 className="w-4 h-4" />
-                </button>
               </div>
             </div>
           ))}
@@ -293,6 +285,47 @@ export const Medicines = () => {
                   {loading ? t('loading') : t('save')}
                 </button>
               </div>
+              
+              {editingMedicine && !showDeleteConfirm && (
+                <button
+                  type="button"
+                  onClick={() => setShowDeleteConfirm(true)}
+                  className="w-full mt-4 py-2.5 rounded-xl flex items-center justify-center gap-2 text-sm font-medium bg-red-500/15 border border-red-500/30 text-red-400 hover:bg-red-500/25 transition-colors"
+                  data-testid="delete-medicine-btn"
+                >
+                  <Trash2 className="w-4 h-4" />
+                  {t('deleteMedicine')}
+                </button>
+              )}
+              
+              {editingMedicine && showDeleteConfirm && (
+                <div className="mt-4 p-4 rounded-xl bg-red-500/10 border border-red-500/30" data-testid="delete-confirm-box">
+                  <p className="text-sm text-red-300 text-center mb-3">
+                    <span className="font-semibold">{editingMedicine.name}</span> {t('discontinueConfirm')}
+                  </p>
+                  <div className="flex gap-3">
+                    <button
+                      type="button"
+                      onClick={() => setShowDeleteConfirm(false)}
+                      className="btn-secondary flex-1 text-sm"
+                    >
+                      {t('cancel')}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        await handleDelete(editingMedicine.medicine_id);
+                        resetForm();
+                        setShowDeleteConfirm(false);
+                      }}
+                      className="flex-1 py-2 rounded-lg bg-red-500 text-white font-medium text-sm hover:bg-red-600 transition-colors"
+                      data-testid="confirm-delete-btn"
+                    >
+                      {t('discontinue')}
+                    </button>
+                  </div>
+                </div>
+              )}
             </form>
           </div>
         </div>

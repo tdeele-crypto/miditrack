@@ -62,6 +62,8 @@ export const translations = {
     noMedicines: "Ingen medicin tilføjet",
     deleteMedicine: "Slet medicin",
     confirmDelete: "Er du sikker?",
+    discontinueConfirm: "skal seponeres?",
+    discontinue: "Seponer",
     addStock: "Tilføj antal",
     amount: "Antal",
     
@@ -180,6 +182,8 @@ export const translations = {
     noMedicines: "No medicines added",
     deleteMedicine: "Delete Medicine",
     confirmDelete: "Are you sure?",
+    discontinueConfirm: "will be discontinued?",
+    discontinue: "Discontinue",
     addStock: "Add Stock",
     amount: "Amount",
     
