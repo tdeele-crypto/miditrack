@@ -124,14 +124,14 @@ export const PrintSchedule = ({ onClose }) => {
             {language === 'da' ? 'Ugeskema' : 'Weekly Schedule'}
           </h2>
           <div className="flex gap-2 shrink-0">
-            <a
-              href={pdfUrl}
+            <button
+              onClick={() => { window.location.href = pdfUrl; }}
               className="flex items-center gap-1.5 px-3 py-2 sm:px-4 sm:py-2 bg-emerald-500 text-white text-sm rounded-lg hover:bg-emerald-600 transition-colors"
               data-testid="download-pdf-btn"
             >
               <Printer className="w-4 h-4" />
               <span className="hidden xs:inline">PDF</span>
-            </a>
+            </button>
             <button
               onClick={onClose}
               className="p-2 hover:bg-zinc-800 rounded-lg transition-colors"
