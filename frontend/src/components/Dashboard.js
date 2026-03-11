@@ -116,11 +116,8 @@ export const Dashboard = () => {
                 }`}
                 data-testid={`day-btn-${i}`}
               >
-                <span className="text-xs text-inherit opacity-70">
+                <span className="text-sm font-bold text-inherit">
                   {DayNames[language][day.getDay()]}
-                </span>
-                <span className="text-lg font-semibold">
-                  {format(day, 'd')}
                 </span>
               </button>
             );
