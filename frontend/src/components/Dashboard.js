@@ -54,7 +54,9 @@ export const Dashboard = () => {
         ...entry,
         medicine,
         taken: !!log,
-        log_id: log?.log_id
+        log_id: log?.log_id,
+        pills_whole: entry.pills_whole || 1,
+        pills_half: entry.pills_half || 0
       };
     }).filter(e => e.medicine);
     
@@ -211,7 +213,7 @@ export const Dashboard = () => {
                             {item.medicine?.name}
                           </p>
                           <p className="text-xs text-zinc-500">
-                            {item.medicine?.dosage} • {item.medicine?.pills_per_dose} {t('pills')}
+                            {item.medicine?.dosage} • {item.pills_whole || 1}{item.pills_half > 0 ? ` + ${item.pills_half}½` : ''} {t('pills')}
                           </p>
                         </div>
                       </div>

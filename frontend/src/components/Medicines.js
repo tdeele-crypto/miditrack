@@ -19,7 +19,6 @@ export const Medicines = () => {
     name: '',
     dosage: '',
     stock_count: 30,
-    pills_per_dose: 1,
     reminder_days_before: 7
   });
   
@@ -28,7 +27,6 @@ export const Medicines = () => {
       name: '',
       dosage: '',
       stock_count: 30,
-      pills_per_dose: 1,
       reminder_days_before: 7
     });
     setEditingMedicine(null);
@@ -40,7 +38,6 @@ export const Medicines = () => {
       name: medicine.name,
       dosage: medicine.dosage,
       stock_count: medicine.stock_count,
-      pills_per_dose: medicine.pills_per_dose,
       reminder_days_before: medicine.reminder_days_before
     });
     setEditingMedicine(medicine);
@@ -154,17 +151,13 @@ export const Medicines = () => {
                 {getStatusBadge(medicine.status, medicine.days_until_empty)}
               </div>
               
-              <div className="grid grid-cols-3 gap-4 mb-4">
+              <div className="grid grid-cols-2 gap-4 mb-4">
                 <div className="bg-zinc-800/50 rounded-xl p-3">
                   <div className="flex items-center gap-2 text-zinc-400 text-xs mb-1">
                     <Package className="w-3 h-3" />
                     {t('stockCount')}
                   </div>
                   <p className="font-semibold">{medicine.stock_count} {t('pills')}</p>
-                </div>
-                <div className="bg-zinc-800/50 rounded-xl p-3">
-                  <div className="text-zinc-400 text-xs mb-1">{t('pillsPerDose')}</div>
-                  <p className="font-semibold">{medicine.pills_per_dose}</p>
                 </div>
                 <div className="bg-zinc-800/50 rounded-xl p-3">
                   <div className="text-zinc-400 text-xs mb-1">{t('reminderDays')}</div>
@@ -250,30 +243,17 @@ export const Medicines = () => {
                   />
                 </div>
                 <div>
-                  <label className="block text-sm text-zinc-400 mb-2">{t('pillsPerDose')}</label>
+                  <label className="block text-sm text-zinc-400 mb-2">{t('reminderDays')}</label>
                   <input
                     type="number"
-                    value={formData.pills_per_dose}
-                    onChange={e => setFormData(prev => ({ ...prev, pills_per_dose: parseInt(e.target.value) || 1 }))}
+                    value={formData.reminder_days_before}
+                    onChange={e => setFormData(prev => ({ ...prev, reminder_days_before: parseInt(e.target.value) || 7 }))}
                     className="input-field"
                     min="1"
                     required
-                    data-testid="medicine-pills-input"
+                    data-testid="medicine-reminder-input"
                   />
                 </div>
-              </div>
-              
-              <div>
-                <label className="block text-sm text-zinc-400 mb-2">{t('reminderDays')}</label>
-                <input
-                  type="number"
-                  value={formData.reminder_days_before}
-                  onChange={e => setFormData(prev => ({ ...prev, reminder_days_before: parseInt(e.target.value) || 7 }))}
-                  className="input-field"
-                  min="1"
-                  required
-                  data-testid="medicine-reminder-input"
-                />
               </div>
               
               <div className="flex gap-3 pt-4">

@@ -61,14 +61,18 @@ export const Schedule = () => {
   const [formData, setFormData] = useState({
     medicine_id: '',
     slot_id: '',
-    days: ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun']
+    days: ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'],
+    pills_whole: 1,
+    pills_half: 0
   });
   
   const resetForm = () => {
     setFormData({
       medicine_id: '',
       slot_id: '',
-      days: ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun']
+      days: ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'],
+      pills_whole: 1,
+      pills_half: 0
     });
     setShowForm(false);
   };
@@ -102,12 +106,20 @@ export const Schedule = () => {
       ? { mon: 'Man', tue: 'Tir', wed: 'Ons', thu: 'Tor', fri: 'Fre', sat: 'Lør', sun: 'Søn' }
       : { mon: 'Mon', tue: 'Tue', wed: 'Wed', thu: 'Thu', fri: 'Fri', sat: 'Sat', sun: 'Sun' };
     
-    const allDays = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
     if (days.length === 7) return language === 'da' ? 'Hver dag' : 'Every day';
     if (days.length === 5 && !days.includes('sat') && !days.includes('sun')) {
       return language === 'da' ? 'Hverdage' : 'Weekdays';
     }
     return days.map(d => dayMap[d]).join(', ');
+  };
+  
+  const formatPillsDose = (entry) => {
+    const whole = entry.pills_whole || 0;
+    const half = entry.pills_half || 0;
+    const parts = [];
+    if (whole > 0) parts.push(`${whole} ${language === 'da' ? 'hel' : 'whole'}${whole > 1 ? (language === 'da' ? 'e' : '') : ''}`);
+    if (half > 0) parts.push(`${half} ${language === 'da' ? 'halv' : 'half'}${half > 1 ? (language === 'da' ? 'e' : '') : ''}`);
+    return parts.join(' + ') || '1';
   };
   
   return (
@@ -166,7 +178,9 @@ export const Schedule = () => {
                   >
                     <div>
                       <p className="font-medium">{entry.medicine_name}</p>
-                      <p className="text-sm text-zinc-400">{getDayLabels(entry.days)}</p>
+                      <p className="text-sm text-zinc-400">
+                        {formatPillsDose(entry)} • {getDayLabels(entry.days)}
+                      </p>
                     </div>
                     <button
                       onClick={() => handleDelete(entry.entry_id)}
@@ -261,6 +275,31 @@ export const Schedule = () => {
                   onChange={days => setFormData(prev => ({ ...prev, days }))}
                   language={language}
                 />
+              </div>
+              
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm text-zinc-400 mb-2">{t('pillsWhole')}</label>
+                  <input
+                    type="number"
+                    value={formData.pills_whole}
+                    onChange={e => setFormData(prev => ({ ...prev, pills_whole: parseInt(e.target.value) || 0 }))}
+                    className="input-field"
+                    min="0"
+                    data-testid="pills-whole-input"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm text-zinc-400 mb-2">{t('pillsHalf')}</label>
+                  <input
+                    type="number"
+                    value={formData.pills_half}
+                    onChange={e => setFormData(prev => ({ ...prev, pills_half: parseInt(e.target.value) || 0 }))}
+                    className="input-field"
+                    min="0"
+                    data-testid="pills-half-input"
+                  />
+                </div>
               </div>
               
               <div className="flex gap-3 pt-4">

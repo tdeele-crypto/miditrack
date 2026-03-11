@@ -63,14 +63,12 @@ class MedicineCreate(BaseModel):
     name: str
     dosage: str
     stock_count: int
-    pills_per_dose: int = 1
     reminder_days_before: int = 7
 
 class MedicineUpdate(BaseModel):
     name: Optional[str] = None
     dosage: Optional[str] = None
-    stock_count: Optional[int] = None
-    pills_per_dose: Optional[int] = None
+    stock_count: Optional[float] = None
     reminder_days_before: Optional[int] = None
 
 class MedicineResponse(BaseModel):
@@ -78,8 +76,7 @@ class MedicineResponse(BaseModel):
     user_id: str
     name: str
     dosage: str
-    stock_count: int
-    pills_per_dose: int
+    stock_count: float
     reminder_days_before: int
     status: str
     days_until_empty: int
@@ -101,6 +98,8 @@ class ScheduleEntryCreate(BaseModel):
     medicine_id: str
     slot_id: str
     days: List[str]
+    pills_whole: int = 1
+    pills_half: int = 0
 
 class ScheduleEntryResponse(BaseModel):
     entry_id: str
@@ -111,6 +110,9 @@ class ScheduleEntryResponse(BaseModel):
     slot_name: str
     slot_time: str
     days: List[str]
+    pills_whole: int
+    pills_half: int
+    pills_per_dose: float
 
 class TakeMedicineRequest(BaseModel):
     medicine_id: str
@@ -135,11 +137,11 @@ class LanguageUpdate(BaseModel):
 def hash_pin(pin: str) -> str:
     return hashlib.sha256(pin.encode()).hexdigest()
 
-def calculate_medicine_status(stock_count: int, pills_per_dose: int, daily_doses: int, reminder_days: int) -> tuple:
-    if daily_doses == 0:
+def calculate_medicine_status(stock_count: int, daily_pills: float, reminder_days: int) -> tuple:
+    if daily_pills == 0:
         return "green", 999
     
-    days_until_empty = stock_count // (pills_per_dose * daily_doses) if pills_per_dose * daily_doses > 0 else 999
+    days_until_empty = int(stock_count / daily_pills) if daily_pills > 0 else 999
     
     if days_until_empty <= reminder_days:
         return "red", days_until_empty
@@ -297,11 +299,13 @@ async def update_language(user_id: str, update: LanguageUpdate):
 
 @api_router.post("/medicines/{user_id}", response_model=MedicineResponse)
 async def create_medicine(user_id: str, medicine: MedicineCreate):
-    schedule_count = await db.schedule_entries.count_documents({"user_id": user_id})
-    daily_doses = schedule_count if schedule_count > 0 else 1
+    # Calculate daily pills from schedule
+    schedule_entries = await db.schedule_entries.find({"user_id": user_id}).to_list(100)
+    daily_pills = 0
+    # Will be recalculated when schedule is added
     
     status, days_until_empty = calculate_medicine_status(
-        medicine.stock_count, medicine.pills_per_dose, daily_doses, medicine.reminder_days_before
+        medicine.stock_count, daily_pills, medicine.reminder_days_before
     )
     
     medicine_id = str(uuid.uuid4())
@@ -311,7 +315,6 @@ async def create_medicine(user_id: str, medicine: MedicineCreate):
         "name": medicine.name,
         "dosage": medicine.dosage,
         "stock_count": medicine.stock_count,
-        "pills_per_dose": medicine.pills_per_dose,
         "reminder_days_before": medicine.reminder_days_before,
         "created_at": datetime.now(timezone.utc).isoformat()
     }
@@ -323,7 +326,6 @@ async def create_medicine(user_id: str, medicine: MedicineCreate):
         name=medicine.name,
         dosage=medicine.dosage,
         stock_count=medicine.stock_count,
-        pills_per_dose=medicine.pills_per_dose,
         reminder_days_before=medicine.reminder_days_before,
         status=status,
         days_until_empty=days_until_empty,
@@ -336,17 +338,19 @@ async def get_medicines(user_id: str):
     result = []
     
     for med in medicines:
+        # Calculate daily pills from schedule entries for this medicine
         schedule_entries = await db.schedule_entries.find(
             {"user_id": user_id, "medicine_id": med["medicine_id"]}, {"_id": 0}
         ).to_list(100)
         
-        daily_doses = 0
+        daily_pills = 0
         for entry in schedule_entries:
-            daily_doses += len(entry.get("days", []))
-        daily_doses = daily_doses / 7 if daily_doses > 0 else 1
+            pills_per_dose = entry.get("pills_whole", 1) + entry.get("pills_half", 0) * 0.5
+            doses_per_week = len(entry.get("days", []))
+            daily_pills += (pills_per_dose * doses_per_week) / 7
         
         status, days_until_empty = calculate_medicine_status(
-            med["stock_count"], med["pills_per_dose"], int(daily_doses), med["reminder_days_before"]
+            med["stock_count"], daily_pills, med["reminder_days_before"]
         )
         
         result.append(MedicineResponse(
@@ -355,7 +359,6 @@ async def get_medicines(user_id: str):
             name=med["name"],
             dosage=med["dosage"],
             stock_count=med["stock_count"],
-            pills_per_dose=med["pills_per_dose"],
             reminder_days_before=med["reminder_days_before"],
             status=status,
             days_until_empty=days_until_empty,
@@ -382,9 +385,14 @@ async def update_medicine(user_id: str, medicine_id: str, update: MedicineUpdate
         {"user_id": user_id, "medicine_id": medicine_id}, {"_id": 0}
     ).to_list(100)
     
-    daily_doses = sum(len(e.get("days", [])) for e in schedule_entries) / 7 if schedule_entries else 1
+    daily_pills = 0
+    for entry in schedule_entries:
+        pills_per_dose = entry.get("pills_whole", 1) + entry.get("pills_half", 0) * 0.5
+        doses_per_week = len(entry.get("days", []))
+        daily_pills += (pills_per_dose * doses_per_week) / 7
+    
     status, days_until_empty = calculate_medicine_status(
-        med["stock_count"], med["pills_per_dose"], int(daily_doses), med["reminder_days_before"]
+        med["stock_count"], daily_pills, med["reminder_days_before"]
     )
     
     return MedicineResponse(
@@ -393,7 +401,6 @@ async def update_medicine(user_id: str, medicine_id: str, update: MedicineUpdate
         name=med["name"],
         dosage=med["dosage"],
         stock_count=med["stock_count"],
-        pills_per_dose=med["pills_per_dose"],
         reminder_days_before=med["reminder_days_before"],
         status=status,
         days_until_empty=days_until_empty,
@@ -438,6 +445,8 @@ async def create_schedule_entry(user_id: str, entry: ScheduleEntryCreate):
     if not slot:
         raise HTTPException(status_code=404, detail="Time slot not found")
     
+    pills_per_dose = entry.pills_whole + entry.pills_half * 0.5
+    
     existing = await db.schedule_entries.find_one({
         "user_id": user_id, "medicine_id": entry.medicine_id, "slot_id": entry.slot_id
     }, {"_id": 0})
@@ -445,7 +454,7 @@ async def create_schedule_entry(user_id: str, entry: ScheduleEntryCreate):
     if existing:
         await db.schedule_entries.update_one(
             {"entry_id": existing["entry_id"]},
-            {"$set": {"days": entry.days}}
+            {"$set": {"days": entry.days, "pills_whole": entry.pills_whole, "pills_half": entry.pills_half}}
         )
         entry_id = existing["entry_id"]
     else:
@@ -455,7 +464,9 @@ async def create_schedule_entry(user_id: str, entry: ScheduleEntryCreate):
             "user_id": user_id,
             "medicine_id": entry.medicine_id,
             "slot_id": entry.slot_id,
-            "days": entry.days
+            "days": entry.days,
+            "pills_whole": entry.pills_whole,
+            "pills_half": entry.pills_half
         }
         await db.schedule_entries.insert_one(entry_doc)
     
@@ -467,7 +478,10 @@ async def create_schedule_entry(user_id: str, entry: ScheduleEntryCreate):
         slot_id=entry.slot_id,
         slot_name=slot["name"],
         slot_time=slot["time"],
-        days=entry.days
+        days=entry.days,
+        pills_whole=entry.pills_whole,
+        pills_half=entry.pills_half,
+        pills_per_dose=pills_per_dose
     )
 
 @api_router.get("/schedule/{user_id}", response_model=List[ScheduleEntryResponse])
@@ -480,6 +494,10 @@ async def get_schedule(user_id: str):
         slot = await db.time_slots.find_one({"slot_id": entry["slot_id"]}, {"_id": 0})
         
         if medicine and slot:
+            pills_whole = entry.get("pills_whole", 1)
+            pills_half = entry.get("pills_half", 0)
+            pills_per_dose = pills_whole + pills_half * 0.5
+            
             result.append(ScheduleEntryResponse(
                 entry_id=entry["entry_id"],
                 user_id=entry["user_id"],
@@ -488,7 +506,10 @@ async def get_schedule(user_id: str):
                 slot_id=entry["slot_id"],
                 slot_name=slot["name"],
                 slot_time=slot["time"],
-                days=entry["days"]
+                days=entry["days"],
+                pills_whole=pills_whole,
+                pills_half=pills_half,
+                pills_per_dose=pills_per_dose
             ))
     
     return result
@@ -512,6 +533,15 @@ async def take_medicine(user_id: str, request: TakeMedicineRequest):
     if not slot:
         raise HTTPException(status_code=404, detail="Time slot not found")
     
+    # Get pills per dose from schedule entry
+    schedule_entry = await db.schedule_entries.find_one({
+        "user_id": user_id, "medicine_id": request.medicine_id, "slot_id": request.slot_id
+    }, {"_id": 0})
+    
+    pills_per_dose = 1.0
+    if schedule_entry:
+        pills_per_dose = schedule_entry.get("pills_whole", 1) + schedule_entry.get("pills_half", 0) * 0.5
+    
     existing_log = await db.medicine_logs.find_one({
         "user_id": user_id,
         "medicine_id": request.medicine_id,
@@ -522,7 +552,7 @@ async def take_medicine(user_id: str, request: TakeMedicineRequest):
     if existing_log:
         raise HTTPException(status_code=400, detail="Already logged for this time")
     
-    new_stock = medicine["stock_count"] - medicine["pills_per_dose"]
+    new_stock = medicine["stock_count"] - pills_per_dose
     if new_stock < 0:
         new_stock = 0
     
@@ -537,6 +567,7 @@ async def take_medicine(user_id: str, request: TakeMedicineRequest):
         "user_id": user_id,
         "medicine_id": request.medicine_id,
         "slot_id": request.slot_id,
+        "pills_taken": pills_per_dose,
         "taken_at": datetime.now(timezone.utc).isoformat(),
         "date": request.date
     }
@@ -586,12 +617,12 @@ async def undo_take_medicine(user_id: str, log_id: str):
     if not log:
         raise HTTPException(status_code=404, detail="Log not found")
     
-    medicine = await db.medicines.find_one({"medicine_id": log["medicine_id"]}, {"_id": 0})
-    if medicine:
-        await db.medicines.update_one(
-            {"medicine_id": log["medicine_id"]},
-            {"$inc": {"stock_count": medicine["pills_per_dose"]}}
-        )
+    pills_taken = log.get("pills_taken", 1.0)
+    
+    await db.medicines.update_one(
+        {"medicine_id": log["medicine_id"]},
+        {"$inc": {"stock_count": pills_taken}}
+    )
     
     await db.medicine_logs.delete_one({"log_id": log_id})
     return {"success": True}
