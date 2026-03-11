@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
-import { Printer, X, Loader2, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Printer, X, ChevronLeft, ChevronRight } from 'lucide-react';
 import { startOfWeek, addDays, addWeeks, format, getISOWeek, parseISO, differenceInCalendarDays, differenceInCalendarWeeks, getDate, isSameDay } from 'date-fns';
 import { da, enUS } from 'date-fns/locale';
 
@@ -18,7 +18,6 @@ const DAYS = [
 
 export const PrintSchedule = ({ onClose }) => {
   const { user, language, medicines, timeSlots, schedule } = useApp();
-  const [generating, setGenerating] = useState(false);
   const [weekStart, setWeekStart] = useState(startOfWeek(new Date(), { weekStartsOn: 1 }));
   const locale = language === 'da' ? da : enUS;
 
@@ -114,21 +113,7 @@ export const PrintSchedule = ({ onClose }) => {
   // Calculate week offset from current week
   const currentMonday = startOfWeek(new Date(), { weekStartsOn: 1 });
   const weekOffset = Math.round((weekStart - currentMonday) / (7 * 24 * 60 * 60 * 1000));
-
-  const generatePDF = () => {
-    setGenerating(true);
-    const url = `${API_URL}/api/schedule/${user.user_id}/pdf?week_offset=${weekOffset}&lang=${language}`;
-    // Use hidden iframe to trigger download - most reliable method
-    let iframe = document.getElementById('pdf-download-frame');
-    if (!iframe) {
-      iframe = document.createElement('iframe');
-      iframe.id = 'pdf-download-frame';
-      iframe.style.display = 'none';
-      document.body.appendChild(iframe);
-    }
-    iframe.src = url;
-    setTimeout(() => setGenerating(false), 2000);
-  };
+  const pdfUrl = user ? `${API_URL}/api/schedule/${user.user_id}/pdf?week_offset=${weekOffset}&lang=${language}` : '#';
 
   return (
     <div className="fixed inset-0 bg-black/80 flex items-start justify-center z-50 overflow-auto" data-testid="print-schedule-modal">
@@ -139,15 +124,16 @@ export const PrintSchedule = ({ onClose }) => {
             {language === 'da' ? 'Ugeskema' : 'Weekly Schedule'}
           </h2>
           <div className="flex gap-2 shrink-0">
-            <button
-              onClick={generatePDF}
-              disabled={generating}
-              className="flex items-center gap-1.5 px-3 py-2 sm:px-4 sm:py-2 bg-emerald-500 text-white text-sm rounded-lg hover:bg-emerald-600 transition-colors disabled:opacity-50"
+            <a
+              href={pdfUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-1.5 px-3 py-2 sm:px-4 sm:py-2 bg-emerald-500 text-white text-sm rounded-lg hover:bg-emerald-600 transition-colors"
               data-testid="download-pdf-btn"
             >
-              {generating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Printer className="w-4 h-4" />}
+              <Printer className="w-4 h-4" />
               <span className="hidden xs:inline">PDF</span>
-            </button>
+            </a>
             <button
               onClick={onClose}
               className="p-2 hover:bg-zinc-800 rounded-lg transition-colors"
