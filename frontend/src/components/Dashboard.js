@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
-import { format, addDays, startOfWeek, isSameDay, parseISO } from 'date-fns';
+import { format, addDays, startOfWeek, isSameDay } from 'date-fns';
 import { da, enUS } from 'date-fns/locale';
 import { 
   Check, 
@@ -9,8 +9,10 @@ import {
   ChevronRight,
   AlertTriangle,
   ThumbsUp,
-  Undo2
+  Undo2,
+  Printer
 } from 'lucide-react';
+import { PrintSchedule } from './PrintSchedule';
 
 const DayNames = {
   da: ['Søn', 'Man', 'Tir', 'Ons', 'Tor', 'Fre', 'Lør'],
@@ -27,6 +29,7 @@ export const Dashboard = () => {
   
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [weekStart, setWeekStart] = useState(startOfWeek(new Date(), { weekStartsOn: 1 }));
+  const [showPrintSchedule, setShowPrintSchedule] = useState(false);
   const locale = language === 'da' ? da : enUS;
   
   const dateString = format(selectedDate, 'yyyy-MM-dd');
@@ -109,11 +112,21 @@ export const Dashboard = () => {
   return (
     <div className="p-4 pb-24 max-w-2xl mx-auto animate-fade-in" data-testid="dashboard">
       {/* Header */}
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold mb-1">{t('dashboard')}</h1>
-        <p className="text-zinc-400">
-          {t('welcome')}, {user?.name}
-        </p>
+      <div className="flex items-center justify-between mb-6">
+        <div>
+          <h1 className="text-2xl font-bold mb-1">{t('dashboard')}</h1>
+          <p className="text-zinc-400">
+            {t('welcome')}, {user?.name}
+          </p>
+        </div>
+        <button
+          onClick={() => setShowPrintSchedule(true)}
+          className="flex items-center gap-2 px-3 py-2 bg-zinc-800 hover:bg-zinc-700 rounded-xl transition-colors"
+          data-testid="open-print-btn"
+        >
+          <Printer className="w-5 h-5 text-emerald-400" />
+          <span className="text-sm hidden sm:inline">{language === 'da' ? 'Ugeskema' : 'Weekly'}</span>
+        </button>
       </div>
       
       {/* Week Selector */}
@@ -276,6 +289,11 @@ export const Dashboard = () => {
             ))}
           </div>
         </div>
+      )}
+
+      {/* Print Schedule Modal */}
+      {showPrintSchedule && (
+        <PrintSchedule onClose={() => setShowPrintSchedule(false)} />
       )}
     </div>
   );
