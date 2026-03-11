@@ -263,8 +263,9 @@ export const Medicines = () => {
       
       {/* Add/Edit Form Modal */}
       {showForm && (
-        <div className="fixed inset-0 bg-black/70 flex items-center justify-center p-4 z-50" data-testid="medicine-form-modal">
-          <div className="glass-card w-full max-w-md p-6 animate-fade-in">
+        <div className="fixed inset-0 bg-black/70 z-50 overflow-y-auto" data-testid="medicine-form-modal">
+          <div className="min-h-full flex items-start justify-center p-4 pt-8 pb-8">
+            <div className="glass-card w-full max-w-md p-6 animate-fade-in">
             <div className="flex items-center justify-between mb-6">
               <h2 className="text-xl font-semibold">
                 {editingMedicine ? t('editMedicine') : t('addMedicine')}
@@ -443,6 +444,7 @@ export const Medicines = () => {
                 </div>
               )}
             </form>
+          </div>
           </div>
         </div>
       )}
