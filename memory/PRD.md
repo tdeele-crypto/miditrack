@@ -35,6 +35,8 @@ Medicine management app to track medicine stock, create weekly dosage schedules,
   - Time-of-day selection (Morgen, Middag, Aften, Nat) inside the ordination popup
   - Normal time slot dropdown and day-dose inputs hidden when ordination is active
   - Can save schedule entry with only special ordination (no day-doses required)
+  - Time-of-day persists correctly when editing existing ordinations
+- [x] **Dashboard shows special ordinations** on their active dates based on start_date, end_date, and repeat pattern (daily/weekly/biweekly/monthly)
 - [x] Printable weekly schedule view (mobile-responsive card layout + desktop table)
 - [x] PDF download (jsPDF, landscape A4)
 - [x] Dark theme
