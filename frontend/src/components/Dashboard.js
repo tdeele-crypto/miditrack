@@ -1,11 +1,8 @@
 import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { format, addDays, startOfWeek, isSameDay } from 'date-fns';
-import { da, enUS } from 'date-fns/locale';
 import { 
   Clock, 
-  ChevronLeft, 
-  ChevronRight,
   AlertTriangle,
   Printer,
   Pill
@@ -23,9 +20,8 @@ export const Dashboard = () => {
   const { t, language, user, medicines, timeSlots, schedule } = useApp();
   
   const [selectedDate, setSelectedDate] = useState(new Date());
-  const [weekStart, setWeekStart] = useState(startOfWeek(new Date(), { weekStartsOn: 1 }));
+  const [weekStart] = useState(startOfWeek(new Date(), { weekStartsOn: 1 }));
   const [showPrintSchedule, setShowPrintSchedule] = useState(false);
-  const locale = language === 'da' ? da : enUS;
   
   const dayKey = DayKeys[selectedDate.getDay()];
   
@@ -73,9 +69,6 @@ export const Dashboard = () => {
   }).filter(slot => slot.medicines.length > 0);
   
   const weekDays = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
-  
-  const goToPrevWeek = () => setWeekStart(addDays(weekStart, -7));
-  const goToNextWeek = () => setWeekStart(addDays(weekStart, 7));
 
   const formatPillsDisplay = (whole, half) => {
     if (whole > 0 && half > 0) return `${whole}½`;
@@ -103,28 +96,8 @@ export const Dashboard = () => {
         </button>
       </div>
       
-      {/* Week Selector */}
+      {/* Week Days */}
       <div className="glass-card p-4 mb-6" data-testid="week-selector">
-        <div className="flex items-center justify-between mb-4">
-          <button 
-            onClick={goToPrevWeek}
-            className="p-2 hover:bg-zinc-800 rounded-lg transition-colors"
-            data-testid="prev-week-btn"
-          >
-            <ChevronLeft className="w-5 h-5" />
-          </button>
-          <span className="font-medium">
-            {format(weekStart, 'MMM yyyy', { locale })}
-          </span>
-          <button 
-            onClick={goToNextWeek}
-            className="p-2 hover:bg-zinc-800 rounded-lg transition-colors"
-            data-testid="next-week-btn"
-          >
-            <ChevronRight className="w-5 h-5" />
-          </button>
-        </div>
-        
         <div className="grid grid-cols-7 gap-2">
           {weekDays.map((day, i) => {
             const isSelected = isSameDay(day, selectedDate);
