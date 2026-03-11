@@ -136,8 +136,8 @@ export const Medicines = () => {
                 <div>
                   <h3 className="font-semibold text-lg">{medicine.name}</h3>
                   <p className="text-zinc-400 text-sm">{medicine.dosage}</p>
+                  <div className="mt-1">{getStatusBadge(medicine.status, medicine.days_until_empty)}</div>
                 </div>
-                {getStatusBadge(medicine.status, medicine.days_until_empty)}
               </div>
               
               <div className="grid grid-cols-2 gap-4 mb-4">
