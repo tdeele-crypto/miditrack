@@ -109,7 +109,8 @@ class TimeSlotResponse(BaseModel):
 class ScheduleEntryCreate(BaseModel):
     medicine_id: str
     slot_id: str
-    day_doses: dict  # {"mon": {"whole": 1, "half": 0}, "tue": {"whole": 2, "half": 1}, ...}
+    day_doses: dict
+    special_ordination: Optional[dict] = None  # {"start_date": "2026-03-15", "end_date": "2026-06-15", "repeat": "daily"}
 
 class ScheduleEntryResponse(BaseModel):
     entry_id: str
@@ -121,6 +122,7 @@ class ScheduleEntryResponse(BaseModel):
     slot_name: str
     slot_time: str
     day_doses: dict
+    special_ordination: Optional[dict] = None
 
 class TakeMedicineRequest(BaseModel):
     medicine_id: str
@@ -518,7 +520,8 @@ async def create_schedule_entry(user_id: str, entry: ScheduleEntryCreate):
             "user_id": user_id,
             "medicine_id": entry.medicine_id,
             "slot_id": entry.slot_id,
-            "day_doses": entry.day_doses
+            "day_doses": entry.day_doses,
+            "special_ordination": entry.special_ordination
         }
         await db.schedule_entries.insert_one(entry_doc)
     
@@ -531,7 +534,8 @@ async def create_schedule_entry(user_id: str, entry: ScheduleEntryCreate):
         slot_id=entry.slot_id,
         slot_name=slot["name"],
         slot_time=slot["time"],
-        day_doses=entry.day_doses
+        day_doses=entry.day_doses,
+        special_ordination=entry.special_ordination
     )
 
 @api_router.get("/schedule/{user_id}", response_model=List[ScheduleEntryResponse])
@@ -561,7 +565,8 @@ async def get_schedule(user_id: str):
                 slot_id=entry["slot_id"],
                 slot_name=slot["name"],
                 slot_time=slot["time"],
-                day_doses=day_doses or {}
+                day_doses=day_doses or {},
+                special_ordination=entry.get("special_ordination")
             ))
     
     return result
@@ -575,6 +580,7 @@ async def delete_schedule_entry(user_id: str, entry_id: str):
 
 class ScheduleEntryUpdate(BaseModel):
     day_doses: Optional[dict] = None
+    special_ordination: Optional[dict] = None
 
 @api_router.put("/schedule/{user_id}/{entry_id}", response_model=ScheduleEntryResponse)
 async def update_schedule_entry(user_id: str, entry_id: str, update: ScheduleEntryUpdate):
@@ -582,12 +588,18 @@ async def update_schedule_entry(user_id: str, entry_id: str, update: ScheduleEnt
     if not entry:
         raise HTTPException(status_code=404, detail="Schedule entry not found")
     
-    if update.day_doses is None:
+    update_fields = {}
+    if update.day_doses is not None:
+        update_fields["day_doses"] = update.day_doses
+    if update.special_ordination is not None:
+        update_fields["special_ordination"] = update.special_ordination
+    
+    if not update_fields:
         raise HTTPException(status_code=400, detail="No fields to update")
     
     await db.schedule_entries.update_one(
         {"entry_id": entry_id},
-        {"$set": {"day_doses": update.day_doses}}
+        {"$set": update_fields}
     )
     
     updated_entry = await db.schedule_entries.find_one({"entry_id": entry_id}, {"_id": 0})
@@ -603,7 +615,8 @@ async def update_schedule_entry(user_id: str, entry_id: str, update: ScheduleEnt
         slot_id=updated_entry["slot_id"],
         slot_name=slot["name"],
         slot_time=slot["time"],
-        day_doses=updated_entry.get("day_doses", {})
+        day_doses=updated_entry.get("day_doses", {}),
+        special_ordination=updated_entry.get("special_ordination")
     )
 
 # ============== MEDICINE LOG ENDPOINTS ==============

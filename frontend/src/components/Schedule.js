@@ -1,12 +1,19 @@
 import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
+import { format, parseISO } from 'date-fns';
+import { da, enUS } from 'date-fns/locale';
+import { Calendar as CalendarComponent } from '../components/ui/calendar';
+import { Popover, PopoverContent, PopoverTrigger } from '../components/ui/popover';
 import { 
   Plus, 
   Calendar, 
   Clock,
   Trash2,
   X,
-  Edit3
+  Edit3,
+  CalendarIcon,
+  Repeat,
+  FileText
 } from 'lucide-react';
 
 const DAYS = [
@@ -179,31 +186,75 @@ const DayDoseSelector = ({ dayDoses, onChange, language, medicineDosage }) => {
   );
 };
 
+
+const OrdDatePicker = ({ value, onChange, locale, testId }) => {
+  const [open, setOpen] = useState(false);
+  const dateValue = value ? parseISO(value) : null;
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <button
+          type="button"
+          className={`input-field w-full text-left flex items-center justify-between ${!value ? 'text-zinc-500' : ''}`}
+          data-testid={testId}
+        >
+          {value ? format(dateValue, 'd. MMM yyyy', { locale }) : '—'}
+          {value && (
+            <span onClick={e => { e.stopPropagation(); onChange(null); }} className="text-zinc-500 hover:text-red-400 ml-2">
+              <X className="w-4 h-4" />
+            </span>
+          )}
+        </button>
+      </PopoverTrigger>
+      <PopoverContent className="w-auto p-0 bg-zinc-900 border-zinc-700 z-[70]" align="start">
+        <CalendarComponent
+          mode="single"
+          selected={dateValue}
+          onSelect={date => { onChange(date ? format(date, 'yyyy-MM-dd') : null); setOpen(false); }}
+          locale={locale}
+          className="rounded-md"
+        />
+      </PopoverContent>
+    </Popover>
+  );
+};
+
 export const Schedule = () => {
   const { t, language, medicines, timeSlots, schedule, addScheduleEntry, deleteScheduleEntry, updateScheduleEntry, updateTimeSlot, loading } = useApp();
   const [showForm, setShowForm] = useState(false);
   const [editingEntry, setEditingEntry] = useState(null);
+  const [showOrdination, setShowOrdination] = useState(false);
+  const locale = language === 'da' ? da : enUS;
   const [formData, setFormData] = useState({
     medicine_id: '',
     slot_id: '',
-    day_doses: {}
+    day_doses: {},
+    special_ordination: null
+  });
+  const [ordData, setOrdData] = useState({
+    start_date: null,
+    end_date: null,
+    repeat: 'daily'
   });
   
   const resetForm = () => {
     setFormData({
       medicine_id: '',
       slot_id: '',
-      day_doses: {}
+      day_doses: {},
+      special_ordination: null
     });
     setEditingEntry(null);
     setShowForm(false);
+    setShowOrdination(false);
   };
   
   const handleEdit = (entry) => {
     setFormData({
       medicine_id: entry.medicine_id,
       slot_id: entry.slot_id,
-      day_doses: entry.day_doses || {}
+      day_doses: entry.day_doses || {},
+      special_ordination: entry.special_ordination || null
     });
     setEditingEntry(entry);
     setShowForm(true);
@@ -214,7 +265,8 @@ export const Schedule = () => {
     try {
       if (editingEntry) {
         await updateScheduleEntry(editingEntry.entry_id, {
-          day_doses: formData.day_doses
+          day_doses: formData.day_doses,
+          special_ordination: formData.special_ordination
         });
       } else {
         await addScheduleEntry(formData);
@@ -354,6 +406,14 @@ export const Schedule = () => {
                     <p className="text-sm text-zinc-400">
                       {formatDayDoses(entry.day_doses, entry.medicine_dosage)}
                     </p>
+                    {entry.special_ordination && (
+                      <div className="mt-2 p-2 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-xs text-emerald-300">
+                        <span className="font-medium">{t('specialOrdination')}: </span>
+                        {entry.special_ordination.start_date && format(parseISO(entry.special_ordination.start_date), 'd. MMM', { locale })}
+                        {entry.special_ordination.end_date && ` — ${format(parseISO(entry.special_ordination.end_date), 'd. MMM yyyy', { locale })}`}
+                        {' · '}{t(entry.special_ordination.repeat)}
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>
@@ -454,6 +514,53 @@ export const Schedule = () => {
                 </div>
               )}
               
+              {/* Special Ordination */}
+              {(formData.medicine_id || editingEntry) && (
+                <>
+                  {formData.special_ordination ? (
+                    <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/30">
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="flex items-center gap-2 text-emerald-400 text-sm font-medium">
+                          <FileText className="w-4 h-4" />
+                          {t('specialOrdination')}
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setFormData(prev => ({ ...prev, special_ordination: null }))}
+                          className="p-1 hover:bg-zinc-800 rounded text-zinc-500 hover:text-red-400"
+                        >
+                          <X className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                      <div className="text-sm text-zinc-300 space-y-1">
+                        <p>{t('ordFrom')}: {formData.special_ordination.start_date ? format(parseISO(formData.special_ordination.start_date), 'd. MMM yyyy', { locale }) : '—'}</p>
+                        {formData.special_ordination.end_date && (
+                          <p>{t('ordTo')}: {format(parseISO(formData.special_ordination.end_date), 'd. MMM yyyy', { locale })}</p>
+                        )}
+                        <p>{t('ordRepeat')}: {t(formData.special_ordination.repeat)}</p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => { setOrdData(formData.special_ordination); setShowOrdination(true); }}
+                        className="mt-2 text-xs text-emerald-400 hover:underline"
+                      >
+                        {t('edit')}
+                      </button>
+                    </div>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => { setOrdData({ start_date: null, end_date: null, repeat: 'daily' }); setShowOrdination(true); }}
+                      className="w-full py-3 rounded-xl border-2 border-dashed border-zinc-700 text-zinc-400 hover:border-emerald-500/50 hover:text-emerald-400 transition-all flex items-center justify-center gap-2 text-sm"
+                      data-testid="special-ordination-btn"
+                    >
+                      <FileText className="w-4 h-4" />
+                      {t('specialOrdination')}
+                    </button>
+                  )}
+                </>
+              )}
+              
               <div className="flex gap-3 pt-4">
                 <button
                   type="button"
@@ -472,6 +579,89 @@ export const Schedule = () => {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+      
+      {/* Special Ordination Popup */}
+      {showOrdination && (
+        <div className="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-[60]" onClick={() => setShowOrdination(false)}>
+          <div className="glass-card w-full max-w-sm p-6 animate-fade-in" onClick={e => e.stopPropagation()} data-testid="ordination-modal">
+            <h3 className="text-lg font-semibold mb-1">{t('specialOrdination')}</h3>
+            <p className="text-sm text-zinc-400 mb-5">{language === 'da' ? 'Angiv periode og gentagelse' : 'Set period and repeat'}</p>
+            
+            {/* Start Date */}
+            <div className="mb-4">
+              <label className="block text-sm text-zinc-400 mb-2">
+                <CalendarIcon className="w-3.5 h-3.5 inline mr-1" />
+                {t('ordStartDate')}
+              </label>
+              <OrdDatePicker
+                value={ordData.start_date}
+                onChange={val => setOrdData(prev => ({ ...prev, start_date: val }))}
+                locale={locale}
+                testId="ord-start-date"
+              />
+            </div>
+            
+            {/* End Date */}
+            <div className="mb-4">
+              <label className="block text-sm text-zinc-400 mb-2">
+                <CalendarIcon className="w-3.5 h-3.5 inline mr-1" />
+                {t('ordEndDate')}
+              </label>
+              <OrdDatePicker
+                value={ordData.end_date}
+                onChange={val => setOrdData(prev => ({ ...prev, end_date: val }))}
+                locale={locale}
+                testId="ord-end-date"
+              />
+            </div>
+            
+            {/* Repeat */}
+            <div className="mb-6">
+              <label className="block text-sm text-zinc-400 mb-2">
+                <Repeat className="w-3.5 h-3.5 inline mr-1" />
+                {t('ordRepeat')}
+              </label>
+              <div className="grid grid-cols-2 gap-2">
+                {['daily', 'weekly', 'biweekly', 'monthly'].map(interval => (
+                  <button
+                    key={interval}
+                    type="button"
+                    onClick={() => setOrdData(prev => ({ ...prev, repeat: interval }))}
+                    className={`py-2.5 px-3 rounded-xl text-sm font-medium transition-all ${
+                      ordData.repeat === interval
+                        ? 'bg-emerald-500 text-white'
+                        : 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700'
+                    }`}
+                    data-testid={`ord-repeat-${interval}`}
+                  >
+                    {t(interval)}
+                  </button>
+                ))}
+              </div>
+            </div>
+            
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowOrdination(false)}
+                className="btn-secondary flex-1"
+              >
+                {t('cancel')}
+              </button>
+              <button
+                onClick={() => {
+                  setFormData(prev => ({ ...prev, special_ordination: { ...ordData } }));
+                  setShowOrdination(false);
+                }}
+                disabled={!ordData.start_date}
+                className="btn-primary flex-1"
+                data-testid="save-ordination-btn"
+              >
+                {t('save')}
+              </button>
+            </div>
           </div>
         </div>
       )}

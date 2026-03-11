@@ -73,6 +73,14 @@ export const translations = {
     daily: "Hver dag",
     weekly: "Hver uge",
     monthly: "Hver måned",
+    specialOrdination: "Special ordination",
+    biweekly: "Hver 14. dag",
+    ordStartDate: "Startdato",
+    ordEndDate: "Slutdato (valgfri)",
+    ordRepeat: "Gentages",
+    ordActive: "Aktiv ordination",
+    ordFrom: "Fra",
+    ordTo: "Til",
     
     // Schedule
     weeklySchedule: "Ugentligt skema",
@@ -200,6 +208,14 @@ export const translations = {
     daily: "Daily",
     weekly: "Weekly",
     monthly: "Monthly",
+    specialOrdination: "Special Ordination",
+    biweekly: "Every 14 days",
+    ordStartDate: "Start date",
+    ordEndDate: "End date (optional)",
+    ordRepeat: "Repeat",
+    ordActive: "Active ordination",
+    ordFrom: "From",
+    ordTo: "To",
     
     // Schedule
     weeklySchedule: "Weekly Schedule",
