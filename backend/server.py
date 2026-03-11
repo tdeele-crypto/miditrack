@@ -97,22 +97,18 @@ class TimeSlotResponse(BaseModel):
 class ScheduleEntryCreate(BaseModel):
     medicine_id: str
     slot_id: str
-    days: List[str]
-    pills_whole: int = 1
-    pills_half: int = 0
+    day_doses: dict  # {"mon": {"whole": 1, "half": 0}, "tue": {"whole": 2, "half": 1}, ...}
 
 class ScheduleEntryResponse(BaseModel):
     entry_id: str
     user_id: str
     medicine_id: str
     medicine_name: str
+    medicine_dosage: str
     slot_id: str
     slot_name: str
     slot_time: str
-    days: List[str]
-    pills_whole: int
-    pills_half: int
-    pills_per_dose: float
+    day_doses: dict
 
 class TakeMedicineRequest(BaseModel):
     medicine_id: str
@@ -343,11 +339,14 @@ async def get_medicines(user_id: str):
             {"user_id": user_id, "medicine_id": med["medicine_id"]}, {"_id": 0}
         ).to_list(100)
         
-        daily_pills = 0
+        weekly_pills = 0
         for entry in schedule_entries:
-            pills_per_dose = entry.get("pills_whole", 1) + entry.get("pills_half", 0) * 0.5
-            doses_per_week = len(entry.get("days", []))
-            daily_pills += (pills_per_dose * doses_per_week) / 7
+            day_doses = entry.get("day_doses", {})
+            for day, dose in day_doses.items():
+                pills = dose.get("whole", 0) + dose.get("half", 0) * 0.5
+                weekly_pills += pills
+        
+        daily_pills = weekly_pills / 7 if weekly_pills > 0 else 0
         
         status, days_until_empty = calculate_medicine_status(
             med["stock_count"], daily_pills, med["reminder_days_before"]
@@ -385,11 +384,14 @@ async def update_medicine(user_id: str, medicine_id: str, update: MedicineUpdate
         {"user_id": user_id, "medicine_id": medicine_id}, {"_id": 0}
     ).to_list(100)
     
-    daily_pills = 0
+    weekly_pills = 0
     for entry in schedule_entries:
-        pills_per_dose = entry.get("pills_whole", 1) + entry.get("pills_half", 0) * 0.5
-        doses_per_week = len(entry.get("days", []))
-        daily_pills += (pills_per_dose * doses_per_week) / 7
+        day_doses = entry.get("day_doses", {})
+        for day, dose in day_doses.items():
+            pills = dose.get("whole", 0) + dose.get("half", 0) * 0.5
+            weekly_pills += pills
+    
+    daily_pills = weekly_pills / 7 if weekly_pills > 0 else 0
     
     status, days_until_empty = calculate_medicine_status(
         med["stock_count"], daily_pills, med["reminder_days_before"]
@@ -445,8 +447,6 @@ async def create_schedule_entry(user_id: str, entry: ScheduleEntryCreate):
     if not slot:
         raise HTTPException(status_code=404, detail="Time slot not found")
     
-    pills_per_dose = entry.pills_whole + entry.pills_half * 0.5
-    
     existing = await db.schedule_entries.find_one({
         "user_id": user_id, "medicine_id": entry.medicine_id, "slot_id": entry.slot_id
     }, {"_id": 0})
@@ -454,7 +454,7 @@ async def create_schedule_entry(user_id: str, entry: ScheduleEntryCreate):
     if existing:
         await db.schedule_entries.update_one(
             {"entry_id": existing["entry_id"]},
-            {"$set": {"days": entry.days, "pills_whole": entry.pills_whole, "pills_half": entry.pills_half}}
+            {"$set": {"day_doses": entry.day_doses}}
         )
         entry_id = existing["entry_id"]
     else:
@@ -464,9 +464,7 @@ async def create_schedule_entry(user_id: str, entry: ScheduleEntryCreate):
             "user_id": user_id,
             "medicine_id": entry.medicine_id,
             "slot_id": entry.slot_id,
-            "days": entry.days,
-            "pills_whole": entry.pills_whole,
-            "pills_half": entry.pills_half
+            "day_doses": entry.day_doses
         }
         await db.schedule_entries.insert_one(entry_doc)
     
@@ -475,13 +473,11 @@ async def create_schedule_entry(user_id: str, entry: ScheduleEntryCreate):
         user_id=user_id,
         medicine_id=entry.medicine_id,
         medicine_name=medicine["name"],
+        medicine_dosage=medicine["dosage"],
         slot_id=entry.slot_id,
         slot_name=slot["name"],
         slot_time=slot["time"],
-        days=entry.days,
-        pills_whole=entry.pills_whole,
-        pills_half=entry.pills_half,
-        pills_per_dose=pills_per_dose
+        day_doses=entry.day_doses
     )
 
 @api_router.get("/schedule/{user_id}", response_model=List[ScheduleEntryResponse])
@@ -494,22 +490,24 @@ async def get_schedule(user_id: str):
         slot = await db.time_slots.find_one({"slot_id": entry["slot_id"]}, {"_id": 0})
         
         if medicine and slot:
-            pills_whole = entry.get("pills_whole", 1)
-            pills_half = entry.get("pills_half", 0)
-            pills_per_dose = pills_whole + pills_half * 0.5
+            # Handle old format (days + pills_whole/half) and new format (day_doses)
+            day_doses = entry.get("day_doses")
+            if not day_doses and "days" in entry:
+                # Convert old format to new
+                pills_whole = entry.get("pills_whole", 1)
+                pills_half = entry.get("pills_half", 0)
+                day_doses = {day: {"whole": pills_whole, "half": pills_half} for day in entry["days"]}
             
             result.append(ScheduleEntryResponse(
                 entry_id=entry["entry_id"],
                 user_id=entry["user_id"],
                 medicine_id=entry["medicine_id"],
                 medicine_name=medicine["name"],
+                medicine_dosage=medicine["dosage"],
                 slot_id=entry["slot_id"],
                 slot_name=slot["name"],
                 slot_time=slot["time"],
-                days=entry["days"],
-                pills_whole=pills_whole,
-                pills_half=pills_half,
-                pills_per_dose=pills_per_dose
+                day_doses=day_doses or {}
             ))
     
     return result
@@ -522,9 +520,7 @@ async def delete_schedule_entry(user_id: str, entry_id: str):
     return {"success": True}
 
 class ScheduleEntryUpdate(BaseModel):
-    days: Optional[List[str]] = None
-    pills_whole: Optional[int] = None
-    pills_half: Optional[int] = None
+    day_doses: Optional[dict] = None
 
 @api_router.put("/schedule/{user_id}/{entry_id}", response_model=ScheduleEntryResponse)
 async def update_schedule_entry(user_id: str, entry_id: str, update: ScheduleEntryUpdate):
@@ -532,35 +528,28 @@ async def update_schedule_entry(user_id: str, entry_id: str, update: ScheduleEnt
     if not entry:
         raise HTTPException(status_code=404, detail="Schedule entry not found")
     
-    update_dict = {k: v for k, v in update.model_dump().items() if v is not None}
-    if not update_dict:
+    if update.day_doses is None:
         raise HTTPException(status_code=400, detail="No fields to update")
     
     await db.schedule_entries.update_one(
         {"entry_id": entry_id},
-        {"$set": update_dict}
+        {"$set": {"day_doses": update.day_doses}}
     )
     
     updated_entry = await db.schedule_entries.find_one({"entry_id": entry_id}, {"_id": 0})
     medicine = await db.medicines.find_one({"medicine_id": updated_entry["medicine_id"]}, {"_id": 0})
     slot = await db.time_slots.find_one({"slot_id": updated_entry["slot_id"]}, {"_id": 0})
     
-    pills_whole = updated_entry.get("pills_whole", 1)
-    pills_half = updated_entry.get("pills_half", 0)
-    pills_per_dose = pills_whole + pills_half * 0.5
-    
     return ScheduleEntryResponse(
         entry_id=entry_id,
         user_id=user_id,
         medicine_id=updated_entry["medicine_id"],
         medicine_name=medicine["name"],
+        medicine_dosage=medicine["dosage"],
         slot_id=updated_entry["slot_id"],
         slot_name=slot["name"],
         slot_time=slot["time"],
-        days=updated_entry["days"],
-        pills_whole=pills_whole,
-        pills_half=pills_half,
-        pills_per_dose=pills_per_dose
+        day_doses=updated_entry.get("day_doses", {})
     )
 
 # ============== MEDICINE LOG ENDPOINTS ==============
@@ -575,14 +564,26 @@ async def take_medicine(user_id: str, request: TakeMedicineRequest):
     if not slot:
         raise HTTPException(status_code=404, detail="Time slot not found")
     
-    # Get pills per dose from schedule entry
+    # Get pills per dose from schedule entry for this specific day
     schedule_entry = await db.schedule_entries.find_one({
         "user_id": user_id, "medicine_id": request.medicine_id, "slot_id": request.slot_id
     }, {"_id": 0})
     
     pills_per_dose = 1.0
     if schedule_entry:
-        pills_per_dose = schedule_entry.get("pills_whole", 1) + schedule_entry.get("pills_half", 0) * 0.5
+        day_doses = schedule_entry.get("day_doses", {})
+        # Get day from date (mon, tue, wed, etc.)
+        from datetime import datetime
+        date_obj = datetime.strptime(request.date, "%Y-%m-%d")
+        day_keys = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun']
+        day_key = day_keys[date_obj.weekday()]
+        
+        if day_key in day_doses:
+            dose = day_doses[day_key]
+            pills_per_dose = dose.get("whole", 0) + dose.get("half", 0) * 0.5
+        elif "days" in schedule_entry:
+            # Old format fallback
+            pills_per_dose = schedule_entry.get("pills_whole", 1) + schedule_entry.get("pills_half", 0) * 0.5
     
     existing_log = await db.medicine_logs.find_one({
         "user_id": user_id,

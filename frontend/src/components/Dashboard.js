@@ -38,10 +38,11 @@ export const Dashboard = () => {
   
   // Get today's schedule
   const todaySchedule = timeSlots.map(slot => {
-    const entries = schedule.filter(s => 
-      s.slot_id === slot.slot_id && 
-      s.days.includes(dayKey)
-    );
+    const entries = schedule.filter(s => {
+      // Check if this slot has a dose for today
+      const dayDoses = s.day_doses || {};
+      return s.slot_id === slot.slot_id && dayDoses[dayKey];
+    });
     
     const medicines_for_slot = entries.map(entry => {
       const medicine = medicines.find(m => m.medicine_id === entry.medicine_id);
@@ -50,13 +51,18 @@ export const Dashboard = () => {
         l.slot_id === slot.slot_id &&
         l.date === dateString
       );
+      
+      const dayDose = entry.day_doses?.[dayKey] || { whole: 1, half: 0 };
+      const pillsWhole = dayDose.whole || 0;
+      const pillsHalf = dayDose.half || 0;
+      
       return {
         ...entry,
         medicine,
         taken: !!log,
         log_id: log?.log_id,
-        pills_whole: entry.pills_whole || 1,
-        pills_half: entry.pills_half || 0
+        pills_whole: pillsWhole,
+        pills_half: pillsHalf
       };
     }).filter(e => e.medicine);
     

@@ -212,7 +212,11 @@ export const AppProvider = ({ children }) => {
   const addScheduleEntry = async (entry) => {
     if (!user) return;
     try {
-      const res = await axios.post(`${API_URL}/api/schedule/${user.user_id}`, entry);
+      const res = await axios.post(`${API_URL}/api/schedule/${user.user_id}`, {
+        medicine_id: entry.medicine_id,
+        slot_id: entry.slot_id,
+        day_doses: entry.day_doses
+      });
       await fetchSchedule();
       await fetchMedicines();
       return res.data;
