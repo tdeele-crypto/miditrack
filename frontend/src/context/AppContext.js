@@ -238,6 +238,16 @@ export const AppProvider = ({ children }) => {
     }
   }, [user]);
 
+  const updateTimeSlot = async (slotId, data) => {
+    if (!user) return;
+    try {
+      await axios.put(`${API_URL}/api/timeslots/${user.user_id}/${slotId}`, data);
+      await fetchTimeSlots();
+    } catch (err) {
+      console.error('Failed to update time slot');
+    }
+  };
+
   // Schedule functions
   const fetchSchedule = useCallback(async () => {
     if (!user) return;
@@ -324,6 +334,7 @@ export const AppProvider = ({ children }) => {
     updateMedicine,
     deleteMedicine,
     fetchTimeSlots,
+    updateTimeSlot,
     fetchSchedule,
     addScheduleEntry,
     deleteScheduleEntry,

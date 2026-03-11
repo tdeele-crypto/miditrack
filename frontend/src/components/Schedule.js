@@ -19,6 +19,46 @@ const DAYS = [
   { key: 'sun', da: 'Søn', en: 'Sun' }
 ];
 
+const EditableTimeSlot = ({ slot, onSave }) => {
+  const [editing, setEditing] = useState(false);
+  const [time, setTime] = useState(slot.time);
+  
+  const save = () => {
+    if (time !== slot.time) {
+      onSave(slot, time);
+    }
+    setEditing(false);
+  };
+  
+  return (
+    <div 
+      className="glass-card p-4 flex items-center gap-3 cursor-pointer hover:border-emerald-500/40 transition-all"
+      onClick={() => { if (!editing) { setEditing(true); setTime(slot.time); } }}
+      data-testid={`timeslot-${slot.slot_id}`}
+    >
+      <Clock className="w-5 h-5 text-emerald-400 shrink-0" />
+      <div className="min-w-0 flex-1">
+        <p className="font-medium">{slot.name}</p>
+        {editing ? (
+          <input
+            type="time"
+            value={time}
+            onChange={e => setTime(e.target.value)}
+            onBlur={save}
+            onKeyDown={e => { if (e.key === 'Enter') save(); if (e.key === 'Escape') setEditing(false); }}
+            onClick={e => e.stopPropagation()}
+            className="input-field py-1 px-2 text-sm mt-1"
+            autoFocus
+            data-testid={`timeslot-input-${slot.slot_id}`}
+          />
+        ) : (
+          <p className="text-sm text-zinc-400">{slot.time}</p>
+        )}
+      </div>
+    </div>
+  );
+};
+
 const DayDoseSelector = ({ dayDoses, onChange, language, medicineDosage }) => {
   const extractMg = (dosageStr) => {
     if (!dosageStr) return null;
@@ -126,7 +166,7 @@ const DayDoseSelector = ({ dayDoses, onChange, language, medicineDosage }) => {
 };
 
 export const Schedule = () => {
-  const { t, language, medicines, timeSlots, schedule, addScheduleEntry, deleteScheduleEntry, updateScheduleEntry, loading } = useApp();
+  const { t, language, medicines, timeSlots, schedule, addScheduleEntry, deleteScheduleEntry, updateScheduleEntry, updateTimeSlot, loading } = useApp();
   const [showForm, setShowForm] = useState(false);
   const [editingEntry, setEditingEntry] = useState(null);
   const [formData, setFormData] = useState({
@@ -255,11 +295,17 @@ export const Schedule = () => {
         <div className="space-y-6">
           {groupedSchedule.map(slot => (
             <div key={slot.slot_id} className="glass-card p-4" data-testid={`schedule-slot-${slot.slot_id}`}>
-              <div className="flex items-center gap-3 mb-4 pb-4 border-b border-zinc-800">
+              <div 
+                className="flex items-center gap-3 mb-4 pb-4 border-b border-zinc-800 cursor-pointer"
+                onClick={() => {
+                  const el = document.querySelector(`[data-testid="timeslot-${slot.slot_id}"]`);
+                  if (el) { el.scrollIntoView({ behavior: 'smooth' }); el.click(); }
+                }}
+              >
                 <div className="w-10 h-10 rounded-xl bg-emerald-500/20 flex items-center justify-center">
                   <Clock className="w-5 h-5 text-emerald-400" />
                 </div>
-                <div>
+                <div className="flex-1">
                   <h3 className="font-semibold">{slot.name}</h3>
                   <p className="text-sm text-zinc-400">{slot.time}</p>
                 </div>
@@ -302,22 +348,16 @@ export const Schedule = () => {
         </div>
       )}
       
-      {/* Time Slots Overview */}
+      {/* Time Slots - clickable to edit time */}
       <div className="mt-8">
         <h2 className="text-lg font-semibold mb-4">{t('timeSlots')}</h2>
         <div className="grid grid-cols-2 gap-3">
           {timeSlots.map(slot => (
-            <div 
-              key={slot.slot_id}
-              className="glass-card p-4 flex items-center gap-3"
-              data-testid={`timeslot-${slot.slot_id}`}
-            >
-              <Clock className="w-5 h-5 text-zinc-400" />
-              <div>
-                <p className="font-medium">{slot.name}</p>
-                <p className="text-sm text-zinc-400">{slot.time}</p>
-              </div>
-            </div>
+            <EditableTimeSlot 
+              key={slot.slot_id} 
+              slot={slot} 
+              onSave={(s, newTime) => updateTimeSlot(s.slot_id, { name: s.name, time: newTime, order: s.order })} 
+            />
           ))}
         </div>
       </div>
