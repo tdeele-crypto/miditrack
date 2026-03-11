@@ -20,42 +20,56 @@ const DAYS = [
 ];
 
 const EditableTimeSlot = ({ slot, onSave }) => {
-  const [editing, setEditing] = useState(false);
+  const [showModal, setShowModal] = useState(false);
   const [time, setTime] = useState(slot.time);
+  
+  const openModal = () => {
+    setTime(slot.time);
+    setShowModal(true);
+  };
   
   const save = () => {
     if (time !== slot.time) {
       onSave(slot, time);
     }
-    setEditing(false);
+    setShowModal(false);
   };
   
   return (
-    <div 
-      className="glass-card p-4 flex items-center gap-3 cursor-pointer hover:border-emerald-500/40 transition-all"
-      onClick={() => { if (!editing) { setEditing(true); setTime(slot.time); } }}
-      data-testid={`timeslot-${slot.slot_id}`}
-    >
-      <Clock className="w-5 h-5 text-emerald-400 shrink-0" />
-      <div className="min-w-0 flex-1">
-        <p className="font-medium">{slot.name}</p>
-        {editing ? (
-          <input
-            type="time"
-            value={time}
-            onChange={e => setTime(e.target.value)}
-            onBlur={save}
-            onKeyDown={e => { if (e.key === 'Enter') save(); if (e.key === 'Escape') setEditing(false); }}
-            onClick={e => e.stopPropagation()}
-            className="input-field py-1 px-2 text-sm mt-1"
-            autoFocus
-            data-testid={`timeslot-input-${slot.slot_id}`}
-          />
-        ) : (
+    <>
+      <div 
+        className="glass-card p-4 flex items-center gap-3 cursor-pointer hover:border-emerald-500/40 transition-all"
+        onClick={openModal}
+        data-testid={`timeslot-${slot.slot_id}`}
+      >
+        <Clock className="w-5 h-5 text-emerald-400 shrink-0" />
+        <div className="min-w-0 flex-1">
+          <p className="font-medium">{slot.name}</p>
           <p className="text-sm text-zinc-400">{slot.time}</p>
-        )}
+        </div>
       </div>
-    </div>
+      
+      {showModal && (
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center p-4 z-50" onClick={() => setShowModal(false)}>
+          <div className="glass-card w-full max-w-xs p-6 animate-fade-in" onClick={e => e.stopPropagation()} data-testid={`timeslot-modal-${slot.slot_id}`}>
+            <h3 className="text-lg font-semibold mb-1">{slot.name}</h3>
+            <p className="text-sm text-zinc-400 mb-4">Rediger tidspunkt</p>
+            <input
+              type="time"
+              value={time}
+              onChange={e => setTime(e.target.value)}
+              className="input-field w-full text-center text-xl py-3 mb-4"
+              autoFocus
+              data-testid={`timeslot-input-${slot.slot_id}`}
+            />
+            <div className="flex gap-3">
+              <button onClick={() => setShowModal(false)} className="btn-secondary flex-1">Annuller</button>
+              <button onClick={save} className="btn-primary flex-1" data-testid={`timeslot-save-${slot.slot_id}`}>Gem</button>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
   );
 };
 
