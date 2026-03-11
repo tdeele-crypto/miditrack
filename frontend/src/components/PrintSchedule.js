@@ -19,8 +19,6 @@ const DAYS = [
 export const PrintSchedule = ({ onClose }) => {
   const { user, language, medicines, timeSlots, schedule } = useApp();
   const [weekStart, setWeekStart] = useState(startOfWeek(new Date(), { weekStartsOn: 1 }));
-  const [pdfBlobUrl, setPdfBlobUrl] = useState(null);
-  const [pdfError, setPdfError] = useState('');
   const locale = language === 'da' ? da : enUS;
 
   const weekDates = DAYS.map((_, i) => addDays(weekStart, i));
@@ -125,38 +123,18 @@ export const PrintSchedule = ({ onClose }) => {
             {language === 'da' ? 'Ugeskema' : 'Weekly Schedule'}
           </h2>
           <div className="flex gap-2 shrink-0">
-            <button
-              onClick={async () => {
-                setPdfError('');
-                setPdfBlobUrl(null);
-                try {
-                  const res = await fetch(pdfUrl);
-                  if (!res.ok) { setPdfError(`Fejl: ${res.status}`); return; }
-                  const blob = await res.blob();
-                  const url = URL.createObjectURL(blob);
-                  setPdfBlobUrl(url);
-                } catch(e) {
-                  setPdfError('Fejl: ' + e.message);
-                }
-              }}
-              className="flex items-center gap-1.5 px-3 py-2 sm:px-4 sm:py-2 bg-emerald-500 text-white text-sm rounded-lg hover:bg-emerald-600 transition-colors"
-              data-testid="download-pdf-btn"
-            >
-              <Printer className="w-4 h-4" />
-              <span>PDF</span>
-            </button>
-            {pdfBlobUrl && (
-              <a
-                href={pdfBlobUrl}
-                download={`ugeskema_uge${weekNumber}.pdf`}
-                className="flex items-center gap-1.5 px-3 py-2 sm:px-4 sm:py-2 bg-blue-500 text-white text-sm rounded-lg hover:bg-blue-600 transition-colors no-underline"
-                data-testid="save-pdf-btn"
+            <form action={pdfUrl} method="get" target="_blank">
+              <button
+                type="submit"
+                className="flex items-center gap-1.5 px-3 py-2 sm:px-4 sm:py-2 bg-emerald-500 text-white text-sm rounded-lg hover:bg-emerald-600 transition-colors"
+                data-testid="download-pdf-btn"
               >
-                Gem fil
-              </a>
-            )}
+                <Printer className="w-4 h-4" />
+                <span>PDF</span>
+              </button>
+            </form>
             <button
-              onClick={() => { if (pdfBlobUrl) URL.revokeObjectURL(pdfBlobUrl); setPdfBlobUrl(null); onClose(); }}
+              onClick={onClose}
               className="p-2 hover:bg-zinc-800 rounded-lg transition-colors"
               data-testid="close-print-btn"
             >
@@ -164,16 +142,6 @@ export const PrintSchedule = ({ onClose }) => {
             </button>
           </div>
         </div>
-
-        {/* PDF viewer / error / status */}
-        {pdfError && (
-          <div className="px-3 sm:px-6 py-3 bg-red-500/20 text-red-400 text-sm">{pdfError}</div>
-        )}
-        {pdfBlobUrl && (
-          <div className="px-3 sm:px-6 py-3">
-            <iframe src={pdfBlobUrl} className="w-full h-[500px] rounded-lg bg-white" title="PDF" data-testid="pdf-iframe" />
-          </div>
-        )}
 
         {/* Content */}
         <div className="p-3 sm:p-6 bg-[#12121a]">

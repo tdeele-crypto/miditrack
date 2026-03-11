@@ -919,7 +919,7 @@ async def generate_schedule_pdf(user_id: str, week_offset: int = 0, lang: str = 
     return StreamingResponse(
         buffer,
         media_type="application/pdf",
-        headers={"Content-Disposition": f"attachment; filename={filename}"}
+        headers={"Content-Disposition": f"inline; filename={filename}"}
     )
 
 class EmailPdfRequest(BaseModel):
