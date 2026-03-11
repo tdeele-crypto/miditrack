@@ -115,17 +115,25 @@ export const PrintSchedule = ({ onClose }) => {
   const currentMonday = startOfWeek(new Date(), { weekStartsOn: 1 });
   const weekOffset = Math.round((weekStart - currentMonday) / (7 * 24 * 60 * 60 * 1000));
 
-  const generatePDF = () => {
+  const generatePDF = async () => {
     setGenerating(true);
-    const url = `${API_URL}/api/schedule/${user.user_id}/pdf?week_offset=${weekOffset}&lang=${language}`;
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `ugeskema_uge${weekNumber}.pdf`;
-    link.style.display = 'none';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    setGenerating(false);
+    try {
+      const url = `${API_URL}/api/schedule/${user.user_id}/pdf?week_offset=${weekOffset}&lang=${language}`;
+      const response = await fetch(url);
+      const blob = await response.blob();
+      const blobUrl = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = blobUrl;
+      link.download = `ugeskema_uge${weekNumber}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(blobUrl);
+    } catch (err) {
+      console.error('PDF download error:', err);
+    } finally {
+      setGenerating(false);
+    }
   };
 
   return (
