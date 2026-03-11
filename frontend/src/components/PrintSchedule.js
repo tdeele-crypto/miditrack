@@ -126,8 +126,6 @@ export const PrintSchedule = ({ onClose }) => {
           <div className="flex gap-2 shrink-0">
             <a
               href={pdfUrl}
-              target="_blank"
-              rel="noopener noreferrer"
               className="flex items-center gap-1.5 px-3 py-2 sm:px-4 sm:py-2 bg-emerald-500 text-white text-sm rounded-lg hover:bg-emerald-600 transition-colors"
               data-testid="download-pdf-btn"
             >
