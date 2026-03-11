@@ -23,14 +23,18 @@ Medicine management app to track medicine stock, create weekly dosage schedules,
 - [x] User registration with PIN (4-digit)
 - [x] Email-based login (POST /api/auth/login-email)
 - [x] User switching: saved users on login screen, click to enter PIN
-- [x] "Gem bruger" (Save user) checkbox - only saved users appear on welcome screen
+- [x] "Gem bruger" (Save user) checkbox
 - [x] PIN reset via email (Resend integration)
 - [x] Medicine CRUD with stock tracking and status indicators
 - [x] Weekly schedule with per-day dosing
 - [x] Time slots (Morning, Noon, Evening, Night)
-- [x] Dashboard with week overview and **week navigation** (prev/next week + dates)
-- [x] Medicine form with **start date, cancel date, end date** (calendar picker) and **repeat interval** (daily/weekly/monthly)
-- [x] Schedule form with **special ordination** popup (start date, end date, repeat: daily/weekly/biweekly/monthly)
+- [x] Dashboard with week overview and week navigation
+- [x] Medicine form with start date, cancel date, end date and repeat interval
+- [x] **Refactored Schedule form with Special Ordination workflow:**
+  - Special Ordination button placed directly under medicine dropdown
+  - Time-of-day selection (Morgen, Middag, Aften, Nat) inside the ordination popup
+  - Normal time slot dropdown and day-dose inputs hidden when ordination is active
+  - Can save schedule entry with only special ordination (no day-doses required)
 - [x] Printable weekly schedule view (mobile-responsive card layout + desktop table)
 - [x] PDF download (jsPDF, landscape A4)
 - [x] Dark theme
@@ -52,12 +56,14 @@ Medicine management app to track medicine stock, create weekly dosage schedules,
 ## DB Collections
 - users: user_id, name, email, pin_hash, language
 - medicines: medicine_id, user_id, name, dosage, stock_count, reminder_days_before
-- schedule_entries: entry_id, user_id, medicine_id, slot_id, day_doses
+- schedule_entries: entry_id, user_id, medicine_id, slot_id, day_doses, special_ordination
 - time_slots: slot_id, user_id, name, time, order
 - pin_resets: email, reset_code, expires_at, used
 
 ## Backlog
+- P1: End-to-end regression testing of entire app
+- P1: Verify PDF download functionality
 - P1: Biometric login (WebAuthn API for web, or native when ported)
-- P1: Full end-to-end regression testing
 - P2: Port to React Native/Expo
 - P2: Native push notifications for reminders
+- P3: Extract helper components from Schedule.js/Medicines.js into shared/ directory
