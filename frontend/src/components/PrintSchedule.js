@@ -1,6 +1,7 @@
-import React, { useRef } from 'react';
+import React, { useRef, useState } from 'react';
 import { useApp } from '../context/AppContext';
-import { Printer, X } from 'lucide-react';
+import { Printer, X, Download, Loader2 } from 'lucide-react';
+import jsPDF from 'jspdf';
 
 const DAYS = [
   { key: 'mon', da: 'Mandag', en: 'Monday', short_da: 'Man', short_en: 'Mon' },
@@ -14,7 +15,7 @@ const DAYS = [
 
 export const PrintSchedule = ({ onClose }) => {
   const { user, language, medicines, timeSlots, schedule } = useApp();
-  const printRef = useRef();
+  const [generating, setGenerating] = useState(false);
 
   const extractMg = (dosageStr) => {
     if (!dosageStr) return null;
@@ -39,8 +40,7 @@ export const PrintSchedule = ({ onClose }) => {
     if (whole > 0 && half > 0) {
       pillsStr = `${whole}½`;
     } else if (half > 0) {
-      pillsStr = `½`;
-      if (half > 1) pillsStr = `${half}×½`;
+      pillsStr = half > 1 ? `${half}×½` : '½';
     } else {
       pillsStr = `${whole}`;
     }
@@ -73,197 +73,163 @@ export const PrintSchedule = ({ onClose }) => {
     };
   }).filter(slot => slot.entries.length > 0);
 
-  const handlePrint = () => {
-    const printWindow = window.open('', '_blank');
+  const generatePDF = async () => {
+    setGenerating(true);
     
-    const today = new Date();
-    const dateStr = today.toLocaleDateString(language === 'da' ? 'da-DK' : 'en-US', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric'
-    });
+    try {
+      // Create PDF in landscape A4
+      const doc = new jsPDF({
+        orientation: 'landscape',
+        unit: 'mm',
+        format: 'a4'
+      });
 
-    let tableRows = '';
-    
-    scheduleBySlot.forEach(slot => {
-      tableRows += `<tr><td colspan="8" class="slot-header">${slot.name} (${slot.time})</td></tr>`;
+      const pageWidth = doc.internal.pageSize.getWidth();
+      const pageHeight = doc.internal.pageSize.getHeight();
+      const margin = 15;
+      let y = margin;
+
+      // Header
+      doc.setFontSize(20);
+      doc.setFont('helvetica', 'bold');
+      doc.text(language === 'da' ? 'UGESKEMA' : 'WEEKLY SCHEDULE', margin, y);
       
-      slot.entries.forEach(entry => {
-        let row = `<tr><td class="medicine-name">${entry.medicine_name}<br><span class="medicine-dosage">${entry.medicine_dosage}</span></td>`;
+      doc.setFontSize(12);
+      doc.setFont('helvetica', 'normal');
+      doc.text(user?.name || '', margin, y + 8);
+      
+      const today = new Date();
+      const dateStr = today.toLocaleDateString(language === 'da' ? 'da-DK' : 'en-US');
+      doc.setFontSize(10);
+      doc.text(`${language === 'da' ? 'Dato' : 'Date'}: ${dateStr}`, pageWidth - margin - 40, y);
+      
+      // Green line under header
+      y += 15;
+      doc.setDrawColor(16, 185, 129);
+      doc.setLineWidth(1);
+      doc.line(margin, y, pageWidth - margin, y);
+      y += 10;
+
+      if (scheduleBySlot.length === 0) {
+        doc.setFontSize(14);
+        doc.text(language === 'da' ? 'Intet skema at vise' : 'No schedule to display', pageWidth / 2, y + 20, { align: 'center' });
+      } else {
+        // Table settings
+        const colWidths = {
+          medicine: 50,
+          day: (pageWidth - margin * 2 - 50) / 7
+        };
+        const rowHeight = 12;
+        const headerHeight = 10;
+
+        // Table header
+        doc.setFillColor(240, 240, 240);
+        doc.rect(margin, y, pageWidth - margin * 2, headerHeight, 'F');
         
+        doc.setFontSize(10);
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(0, 0, 0);
+        doc.text(language === 'da' ? 'Medicin' : 'Medicine', margin + 2, y + 7);
+        
+        let x = margin + colWidths.medicine;
         DAYS.forEach(day => {
-          const dose = entry.day_doses?.[day.key];
-          const formatted = formatDose(dose, entry.mgPerPill);
-          if (dose) {
-            row += `<td class="dose-cell"><div class="dose-pills">${formatted.pills}</div>${formatted.mg ? `<div class="dose-mg">${formatted.mg}</div>` : ''}</td>`;
-          } else {
-            row += `<td class="dose-cell"><span class="empty-dose">-</span></td>`;
-          }
+          const label = language === 'da' ? day.short_da : day.short_en;
+          doc.text(label, x + colWidths.day / 2, y + 7, { align: 'center' });
+          x += colWidths.day;
         });
         
-        row += '</tr>';
-        tableRows += row;
-      });
-    });
-    
-    printWindow.document.write(`
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <title>${language === 'da' ? 'Ugeskema' : 'Weekly Schedule'} - ${user?.name}</title>
-        <style>
-          @page {
-            size: A4 landscape;
-            margin: 15mm;
-          }
-          @media print {
-            body {
-              -webkit-print-color-adjust: exact !important;
-              print-color-adjust: exact !important;
+        y += headerHeight;
+
+        // Draw table content
+        scheduleBySlot.forEach(slot => {
+          // Slot header
+          doc.setFillColor(16, 185, 129);
+          doc.rect(margin, y, pageWidth - margin * 2, 8, 'F');
+          doc.setTextColor(255, 255, 255);
+          doc.setFont('helvetica', 'bold');
+          doc.text(`${slot.name} (${slot.time})`, margin + 2, y + 6);
+          y += 8;
+          doc.setTextColor(0, 0, 0);
+
+          // Entries
+          slot.entries.forEach(entry => {
+            // Check if we need a new page
+            if (y + rowHeight > pageHeight - margin) {
+              doc.addPage();
+              y = margin;
             }
-          }
-          * {
-            box-sizing: border-box;
-            margin: 0;
-            padding: 0;
-          }
-          body {
-            font-family: Arial, sans-serif;
-            font-size: 12px;
-            color: #000;
-            background: #fff;
-            padding: 20px;
-          }
-          .header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 20px;
-            padding-bottom: 15px;
-            border-bottom: 3px solid #10b981;
-          }
-          .title {
-            font-size: 24px;
-            font-weight: 700;
-            color: #000;
-          }
-          .user-name {
-            font-size: 16px;
-            color: #333;
-            margin-top: 5px;
-          }
-          .print-date {
-            font-size: 11px;
-            color: #666;
-          }
-          table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-bottom: 20px;
-          }
-          th, td {
-            border: 2px solid #333;
-            padding: 8px 10px;
-            text-align: center;
-            vertical-align: middle;
-          }
-          th {
-            background: #f0f0f0 !important;
-            font-weight: 700;
-            color: #000;
-            font-size: 13px;
-          }
-          .slot-header {
-            background: #10b981 !important;
-            color: #fff !important;
-            font-weight: 700;
-            font-size: 14px;
-            text-align: left;
-            padding: 10px 15px;
-          }
-          .medicine-name {
-            text-align: left;
-            font-weight: 700;
-            background: #f8f8f8 !important;
-            color: #000;
-            font-size: 13px;
-            min-width: 150px;
-          }
-          .medicine-dosage {
-            font-size: 10px;
-            color: #666;
-            font-weight: normal;
-          }
-          .dose-cell {
-            min-width: 70px;
-            background: #fff !important;
-          }
-          .dose-pills {
-            font-weight: 700;
-            font-size: 16px;
-            color: #000;
-          }
-          .dose-mg {
-            font-size: 10px;
-            color: #10b981;
-            font-weight: 600;
-          }
-          .empty-dose {
-            color: #ccc;
-            font-size: 14px;
-          }
-          .day-header {
-            font-weight: 700;
-            min-width: 70px;
-          }
-          .footer {
-            margin-top: 25px;
-            padding-top: 15px;
-            border-top: 1px solid #ccc;
-            font-size: 10px;
-            color: #666;
-            display: flex;
-            justify-content: space-between;
-          }
-        </style>
-      </head>
-      <body>
-        <div class="header">
-          <div>
-            <div class="title">${language === 'da' ? 'UGESKEMA' : 'WEEKLY SCHEDULE'}</div>
-            <div class="user-name">${user?.name}</div>
-          </div>
-          <div class="print-date">${language === 'da' ? 'Udskrevet' : 'Printed'}: ${dateStr}</div>
-        </div>
-        
-        ${scheduleBySlot.length === 0 
-          ? `<p style="text-align:center;padding:40px;color:#666;">${language === 'da' ? 'Intet skema at vise' : 'No schedule to display'}</p>`
-          : `<table>
-              <thead>
-                <tr>
-                  <th style="text-align:left;min-width:150px;">${language === 'da' ? 'Medicin' : 'Medicine'}</th>
-                  ${DAYS.map(day => `<th class="day-header">${language === 'da' ? day.short_da : day.short_en}</th>`).join('')}
-                </tr>
-              </thead>
-              <tbody>
-                ${tableRows}
-              </tbody>
-            </table>`
-        }
-        
-        <div class="footer">
-          <span>MediTrack</span>
-          <span>${language === 'da' ? 'Hold dette skema opdateret' : 'Keep this schedule updated'}</span>
-        </div>
-      </body>
-      </html>
-    `);
-    
-    printWindow.document.close();
-    printWindow.focus();
-    setTimeout(() => {
-      printWindow.print();
-    }, 500);
+
+            // Row background
+            doc.setFillColor(250, 250, 250);
+            doc.rect(margin, y, pageWidth - margin * 2, rowHeight, 'F');
+            
+            // Border
+            doc.setDrawColor(200, 200, 200);
+            doc.rect(margin, y, pageWidth - margin * 2, rowHeight, 'S');
+
+            // Medicine name
+            doc.setFont('helvetica', 'bold');
+            doc.setFontSize(9);
+            doc.text(entry.medicine_name, margin + 2, y + 5);
+            doc.setFont('helvetica', 'normal');
+            doc.setFontSize(7);
+            doc.setTextColor(100, 100, 100);
+            doc.text(entry.medicine_dosage || '', margin + 2, y + 10);
+            doc.setTextColor(0, 0, 0);
+
+            // Doses per day
+            let x = margin + colWidths.medicine;
+            DAYS.forEach(day => {
+              const dose = entry.day_doses?.[day.key];
+              const formatted = formatDose(dose, entry.mgPerPill);
+              
+              // Vertical line
+              doc.setDrawColor(200, 200, 200);
+              doc.line(x, y, x, y + rowHeight);
+              
+              if (dose) {
+                doc.setFont('helvetica', 'bold');
+                doc.setFontSize(11);
+                doc.text(formatted.pills, x + colWidths.day / 2, y + 5, { align: 'center' });
+                
+                if (formatted.mg) {
+                  doc.setFont('helvetica', 'normal');
+                  doc.setFontSize(7);
+                  doc.setTextColor(16, 185, 129);
+                  doc.text(formatted.mg, x + colWidths.day / 2, y + 10, { align: 'center' });
+                  doc.setTextColor(0, 0, 0);
+                }
+              } else {
+                doc.setTextColor(180, 180, 180);
+                doc.text('-', x + colWidths.day / 2, y + 7, { align: 'center' });
+                doc.setTextColor(0, 0, 0);
+              }
+              
+              x += colWidths.day;
+            });
+
+            y += rowHeight;
+          });
+          
+          y += 3; // Space between slots
+        });
+      }
+
+      // Footer
+      doc.setFontSize(8);
+      doc.setTextColor(150, 150, 150);
+      doc.text('MediTrack', margin, pageHeight - 10);
+      doc.text(language === 'da' ? 'Hold dette skema opdateret' : 'Keep this schedule updated', pageWidth - margin, pageHeight - 10, { align: 'right' });
+
+      // Save and open
+      const fileName = `ugeskema_${user?.name?.replace(/\s+/g, '_') || 'medicin'}_${new Date().toISOString().split('T')[0]}.pdf`;
+      doc.save(fileName);
+      
+    } catch (err) {
+      console.error('PDF generation error:', err);
+    } finally {
+      setGenerating(false);
+    }
   };
 
   const today = new Date();
@@ -279,16 +245,21 @@ export const PrintSchedule = ({ onClose }) => {
         {/* Controls */}
         <div className="sticky top-0 bg-[#0a0a0f] border-b border-zinc-800 p-4 flex items-center justify-between z-10">
           <h2 className="text-xl font-bold text-white">
-            {language === 'da' ? 'Ugeskema til print' : 'Weekly Schedule for Print'}
+            {language === 'da' ? 'Ugeskema' : 'Weekly Schedule'}
           </h2>
           <div className="flex gap-2">
             <button
-              onClick={handlePrint}
-              className="flex items-center gap-2 px-4 py-2 bg-emerald-500 text-white rounded-lg hover:bg-emerald-600 transition-colors"
-              data-testid="print-btn"
+              onClick={generatePDF}
+              disabled={generating || scheduleBySlot.length === 0}
+              className="flex items-center gap-2 px-4 py-2 bg-emerald-500 text-white rounded-lg hover:bg-emerald-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              data-testid="download-pdf-btn"
             >
-              <Printer className="w-5 h-5" />
-              {language === 'da' ? 'Print' : 'Print'}
+              {generating ? (
+                <Loader2 className="w-5 h-5 animate-spin" />
+              ) : (
+                <Download className="w-5 h-5" />
+              )}
+              {language === 'da' ? 'Download PDF' : 'Download PDF'}
             </button>
             <button
               onClick={onClose}
@@ -300,7 +271,7 @@ export const PrintSchedule = ({ onClose }) => {
         </div>
 
         {/* Preview Content */}
-        <div ref={printRef} className="p-6 bg-[#12121a]">
+        <div className="p-6 bg-[#12121a]">
           {/* Header */}
           <div className="flex justify-between items-center mb-6 pb-4 border-b-2 border-emerald-500">
             <div>
@@ -310,13 +281,13 @@ export const PrintSchedule = ({ onClose }) => {
               <p className="text-zinc-400 mt-1">{user?.name}</p>
             </div>
             <p className="text-sm text-zinc-500">
-              {language === 'da' ? 'Udskrevet' : 'Printed'}: {dateStr}
+              {language === 'da' ? 'Dato' : 'Date'}: {dateStr}
             </p>
           </div>
 
           {scheduleBySlot.length === 0 ? (
             <div className="text-center py-12 text-zinc-500">
-              {language === 'da' ? 'Intet skema at vise' : 'No schedule to display'}
+              {language === 'da' ? 'Intet skema at vise - tilføj medicin til skema først' : 'No schedule to display - add medicine to schedule first'}
             </div>
           ) : (
             <div className="overflow-x-auto">
