@@ -110,7 +110,7 @@ export const PrintSchedule = ({ onClose }) => {
 
   const weekLabel = `${format(weekDates[0], 'd. MMM', { locale })} - ${format(weekDates[6], 'd. MMM yyyy', { locale })}`;
 
-  const generatePDF = async () => {
+  const generatePDF = () => {
     setGenerating(true);
     try {
       const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
@@ -225,7 +225,14 @@ export const PrintSchedule = ({ onClose }) => {
       doc.text(language === 'da' ? 'Hold dette skema opdateret' : 'Keep this schedule updated', pageWidth - margin, pageHeight - 10, { align: 'right' });
 
       const fileName = `ugeskema_uge${weekNumber}.pdf`;
-      doc.save(fileName);
+      const pdfDataUri = doc.output('datauristring');
+      const link = document.createElement('a');
+      link.href = pdfDataUri;
+      link.download = fileName;
+      link.style.display = 'none';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
     } catch (err) {
       console.error('PDF generation error:', err);
       alert((language === 'da' ? 'Kunne ikke generere PDF: ' : 'Could not generate PDF: ') + err.message);
