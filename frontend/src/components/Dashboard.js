@@ -220,7 +220,7 @@ export const Dashboard = () => {
                           <p className="font-medium">{item.medicine?.name}</p>
                           <p className="text-xs text-zinc-500">{item.medicine?.dosage}</p>
                           <p className="text-sm text-emerald-400 font-semibold">
-                            {formatPillsDisplay(item.pills_whole, item.pills_half)} {language === 'da' ? 'piller' : 'pills'}
+                            {formatPillsDisplay(item.pills_whole, item.pills_half)} stk.
                             {item.total_mg && (
                               <span className="text-zinc-400 font-normal ml-2">
                                 {item.total_mg % 1 === 0 ? item.total_mg : item.total_mg.toFixed(2)}mg
