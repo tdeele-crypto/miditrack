@@ -204,11 +204,10 @@ export const Dashboard = () => {
                   {slot.medicines.map(item => (
                     <div 
                       key={item.entry_id}
-                      className="flex items-center justify-between p-3 rounded-xl bg-zinc-800/50 border border-zinc-700"
+                      className="flex items-center gap-3 p-3 rounded-xl bg-zinc-800/50 border border-zinc-700"
                       data-testid={`medicine-item-${item.medicine_id}`}
                     >
-                      <div className="flex items-center gap-3">
-                        <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${
+                        <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${
                           item.medicine?.status === 'green' ? 'bg-emerald-500/20' :
                           item.medicine?.status === 'yellow' ? 'bg-amber-500/20' : 'bg-red-500/20'
                         }`}>
@@ -217,24 +216,21 @@ export const Dashboard = () => {
                             item.medicine?.status === 'yellow' ? 'text-amber-400' : 'text-red-400'
                           }`} />
                         </div>
-                        <div>
+                        <div className="min-w-0">
                           <p className="font-medium">{item.medicine?.name}</p>
                           <p className="text-xs text-zinc-500">{item.medicine?.dosage}</p>
+                          <p className="text-sm text-emerald-400 font-semibold">
+                            {formatPillsDisplay(item.pills_whole, item.pills_half)} {language === 'da' ? 'piller' : 'pills'}
+                            {item.total_mg && (
+                              <span className="text-zinc-400 font-normal ml-2">
+                                {item.total_mg % 1 === 0 ? item.total_mg : item.total_mg.toFixed(2)}mg
+                              </span>
+                            )}
+                          </p>
                           {item.is_special && (
                             <p className="text-xs text-emerald-400 mt-0.5">{language === 'da' ? 'Special ordination' : 'Special ordination'}</p>
                           )}
                         </div>
-                      </div>
-                      <div className="text-right">
-                        <p className="font-semibold text-emerald-400">
-                          {formatPillsDisplay(item.pills_whole, item.pills_half)} {language === 'da' ? 'piller' : 'pills'}
-                        </p>
-                        {item.total_mg && (
-                          <p className="text-xs text-zinc-400">
-                            {item.total_mg % 1 === 0 ? item.total_mg : item.total_mg.toFixed(2)}mg
-                          </p>
-                        )}
-                      </div>
                     </div>
                   ))}
                 </div>
