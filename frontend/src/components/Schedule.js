@@ -6,7 +6,7 @@ import {
   Clock,
   Trash2,
   X,
-  Check
+  Edit3
 } from 'lucide-react';
 
 const DaySelector = ({ selected, onChange, language }) => {
@@ -56,8 +56,9 @@ const DaySelector = ({ selected, onChange, language }) => {
 };
 
 export const Schedule = () => {
-  const { t, language, medicines, timeSlots, schedule, addScheduleEntry, deleteScheduleEntry, loading } = useApp();
+  const { t, language, medicines, timeSlots, schedule, addScheduleEntry, deleteScheduleEntry, updateScheduleEntry, loading } = useApp();
   const [showForm, setShowForm] = useState(false);
+  const [editingEntry, setEditingEntry] = useState(null);
   const [formData, setFormData] = useState({
     medicine_id: '',
     slot_id: '',
@@ -74,13 +75,34 @@ export const Schedule = () => {
       pills_whole: 1,
       pills_half: 0
     });
+    setEditingEntry(null);
     setShowForm(false);
+  };
+  
+  const handleEdit = (entry) => {
+    setFormData({
+      medicine_id: entry.medicine_id,
+      slot_id: entry.slot_id,
+      days: entry.days,
+      pills_whole: entry.pills_whole || 1,
+      pills_half: entry.pills_half || 0
+    });
+    setEditingEntry(entry);
+    setShowForm(true);
   };
   
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      await addScheduleEntry(formData);
+      if (editingEntry) {
+        await updateScheduleEntry(editingEntry.entry_id, {
+          days: formData.days,
+          pills_whole: formData.pills_whole,
+          pills_half: formData.pills_half
+        });
+      } else {
+        await addScheduleEntry(formData);
+      }
       resetForm();
     } catch (err) {
       console.error(err);
@@ -182,13 +204,22 @@ export const Schedule = () => {
                         {formatPillsDose(entry)} • {getDayLabels(entry.days)}
                       </p>
                     </div>
-                    <button
-                      onClick={() => handleDelete(entry.entry_id)}
-                      className="p-2 hover:bg-zinc-700 rounded-lg transition-colors text-zinc-400 hover:text-red-400"
-                      data-testid={`delete-schedule-${entry.entry_id}`}
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
+                    <div className="flex gap-1">
+                      <button
+                        onClick={() => handleEdit(entry)}
+                        className="p-2 hover:bg-zinc-700 rounded-lg transition-colors text-zinc-400 hover:text-emerald-400"
+                        data-testid={`edit-schedule-${entry.entry_id}`}
+                      >
+                        <Edit3 className="w-4 h-4" />
+                      </button>
+                      <button
+                        onClick={() => handleDelete(entry.entry_id)}
+                        className="p-2 hover:bg-zinc-700 rounded-lg transition-colors text-zinc-400 hover:text-red-400"
+                        data-testid={`delete-schedule-${entry.entry_id}`}
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
                   </div>
                 ))}
               </div>
@@ -222,7 +253,9 @@ export const Schedule = () => {
         <div className="fixed inset-0 bg-black/70 flex items-center justify-center p-4 z-50" data-testid="schedule-form-modal">
           <div className="glass-card w-full max-w-md p-6 animate-fade-in">
             <div className="flex items-center justify-between mb-6">
-              <h2 className="text-xl font-semibold">{t('addToSchedule')}</h2>
+              <h2 className="text-xl font-semibold">
+                {editingEntry ? (language === 'da' ? 'Rediger dosis' : 'Edit Dose') : t('addToSchedule')}
+              </h2>
               <button
                 onClick={resetForm}
                 className="p-2 hover:bg-zinc-700 rounded-lg transition-colors"
@@ -232,41 +265,52 @@ export const Schedule = () => {
             </div>
             
             <form onSubmit={handleSubmit} className="space-y-4">
-              <div>
-                <label className="block text-sm text-zinc-400 mb-2">{t('selectMedicine')}</label>
-                <select
-                  value={formData.medicine_id}
-                  onChange={e => setFormData(prev => ({ ...prev, medicine_id: e.target.value }))}
-                  className="select-field"
-                  required
-                  data-testid="select-medicine"
-                >
-                  <option value="">{t('selectMedicine')}...</option>
-                  {medicines.map(med => (
-                    <option key={med.medicine_id} value={med.medicine_id}>
-                      {med.name} ({med.dosage})
-                    </option>
-                  ))}
-                </select>
-              </div>
+              {!editingEntry && (
+                <>
+                  <div>
+                    <label className="block text-sm text-zinc-400 mb-2">{t('selectMedicine')}</label>
+                    <select
+                      value={formData.medicine_id}
+                      onChange={e => setFormData(prev => ({ ...prev, medicine_id: e.target.value }))}
+                      className="select-field"
+                      required
+                      data-testid="select-medicine"
+                    >
+                      <option value="">{t('selectMedicine')}...</option>
+                      {medicines.map(med => (
+                        <option key={med.medicine_id} value={med.medicine_id}>
+                          {med.name} ({med.dosage})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm text-zinc-400 mb-2">{t('selectTimeSlot')}</label>
+                    <select
+                      value={formData.slot_id}
+                      onChange={e => setFormData(prev => ({ ...prev, slot_id: e.target.value }))}
+                      className="select-field"
+                      required
+                      data-testid="select-timeslot"
+                    >
+                      <option value="">{t('selectTimeSlot')}...</option>
+                      {timeSlots.map(slot => (
+                        <option key={slot.slot_id} value={slot.slot_id}>
+                          {slot.name} ({slot.time})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </>
+              )}
               
-              <div>
-                <label className="block text-sm text-zinc-400 mb-2">{t('selectTimeSlot')}</label>
-                <select
-                  value={formData.slot_id}
-                  onChange={e => setFormData(prev => ({ ...prev, slot_id: e.target.value }))}
-                  className="select-field"
-                  required
-                  data-testid="select-timeslot"
-                >
-                  <option value="">{t('selectTimeSlot')}...</option>
-                  {timeSlots.map(slot => (
-                    <option key={slot.slot_id} value={slot.slot_id}>
-                      {slot.name} ({slot.time})
-                    </option>
-                  ))}
-                </select>
-              </div>
+              {editingEntry && (
+                <div className="p-3 bg-zinc-800/50 rounded-xl mb-2">
+                  <p className="font-medium">{editingEntry.medicine_name}</p>
+                  <p className="text-sm text-zinc-400">{editingEntry.slot_name} ({editingEntry.slot_time})</p>
+                </div>
+              )}
               
               <div>
                 <label className="block text-sm text-zinc-400 mb-2">{t('selectDays')}</label>
@@ -312,7 +356,7 @@ export const Schedule = () => {
                 </button>
                 <button
                   type="submit"
-                  disabled={loading || !formData.medicine_id || !formData.slot_id || formData.days.length === 0}
+                  disabled={loading || (!editingEntry && (!formData.medicine_id || !formData.slot_id)) || formData.days.length === 0}
                   className="btn-primary flex-1"
                   data-testid="save-schedule-btn"
                 >

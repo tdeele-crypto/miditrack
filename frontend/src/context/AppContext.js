@@ -234,6 +234,19 @@ export const AppProvider = ({ children }) => {
     }
   };
 
+  const updateScheduleEntry = async (entryId, updates) => {
+    if (!user) return;
+    try {
+      const res = await axios.put(`${API_URL}/api/schedule/${user.user_id}/${entryId}`, updates);
+      await fetchSchedule();
+      await fetchMedicines();
+      return res.data;
+    } catch (err) {
+      setError(err.response?.data?.detail || 'Failed to update schedule');
+      throw err;
+    }
+  };
+
   // Log functions
   const fetchLogs = useCallback(async (date) => {
     if (!user) return;
@@ -310,6 +323,7 @@ export const AppProvider = ({ children }) => {
     fetchSchedule,
     addScheduleEntry,
     deleteScheduleEntry,
+    updateScheduleEntry,
     fetchLogs,
     takeMedicine,
     undoTakeMedicine

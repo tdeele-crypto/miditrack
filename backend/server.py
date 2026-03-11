@@ -521,6 +521,48 @@ async def delete_schedule_entry(user_id: str, entry_id: str):
         raise HTTPException(status_code=404, detail="Schedule entry not found")
     return {"success": True}
 
+class ScheduleEntryUpdate(BaseModel):
+    days: Optional[List[str]] = None
+    pills_whole: Optional[int] = None
+    pills_half: Optional[int] = None
+
+@api_router.put("/schedule/{user_id}/{entry_id}", response_model=ScheduleEntryResponse)
+async def update_schedule_entry(user_id: str, entry_id: str, update: ScheduleEntryUpdate):
+    entry = await db.schedule_entries.find_one({"user_id": user_id, "entry_id": entry_id}, {"_id": 0})
+    if not entry:
+        raise HTTPException(status_code=404, detail="Schedule entry not found")
+    
+    update_dict = {k: v for k, v in update.model_dump().items() if v is not None}
+    if not update_dict:
+        raise HTTPException(status_code=400, detail="No fields to update")
+    
+    await db.schedule_entries.update_one(
+        {"entry_id": entry_id},
+        {"$set": update_dict}
+    )
+    
+    updated_entry = await db.schedule_entries.find_one({"entry_id": entry_id}, {"_id": 0})
+    medicine = await db.medicines.find_one({"medicine_id": updated_entry["medicine_id"]}, {"_id": 0})
+    slot = await db.time_slots.find_one({"slot_id": updated_entry["slot_id"]}, {"_id": 0})
+    
+    pills_whole = updated_entry.get("pills_whole", 1)
+    pills_half = updated_entry.get("pills_half", 0)
+    pills_per_dose = pills_whole + pills_half * 0.5
+    
+    return ScheduleEntryResponse(
+        entry_id=entry_id,
+        user_id=user_id,
+        medicine_id=updated_entry["medicine_id"],
+        medicine_name=medicine["name"],
+        slot_id=updated_entry["slot_id"],
+        slot_name=slot["name"],
+        slot_time=slot["time"],
+        days=updated_entry["days"],
+        pills_whole=pills_whole,
+        pills_half=pills_half,
+        pills_per_dose=pills_per_dose
+    )
+
 # ============== MEDICINE LOG ENDPOINTS ==============
 
 @api_router.post("/log/{user_id}", response_model=MedicineLogResponse)
