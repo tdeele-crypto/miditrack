@@ -144,6 +144,27 @@ export const Schedule = () => {
     return parts.join(' + ') || '1';
   };
   
+  const extractDosageMg = (dosageStr) => {
+    if (!dosageStr) return null;
+    const match = dosageStr.match(/(\d+(?:[.,]\d+)?)\s*(mg|g|mcg|µg)/i);
+    if (!match) return null;
+    let value = parseFloat(match[1].replace(',', '.'));
+    const unit = match[2].toLowerCase();
+    if (unit === 'g') value *= 1000;
+    if (unit === 'mcg' || unit === 'µg') value /= 1000;
+    return { value, unit: 'mg' };
+  };
+  
+  const calculateTotalMg = (medicineId, pillsWhole, pillsHalf) => {
+    const medicine = medicines.find(m => m.medicine_id === medicineId);
+    if (!medicine) return null;
+    const dosage = extractDosageMg(medicine.dosage);
+    if (!dosage) return null;
+    const totalPills = pillsWhole + pillsHalf * 0.5;
+    const totalMg = dosage.value * totalPills;
+    return totalMg % 1 === 0 ? totalMg : totalMg.toFixed(1);
+  };
+  
   return (
     <div className="p-4 pb-24 max-w-2xl mx-auto animate-fade-in" data-testid="schedule-page">
       {/* Header */}
@@ -192,7 +213,9 @@ export const Schedule = () => {
               </div>
               
               <div className="space-y-3">
-                {slot.entries.map(entry => (
+                {slot.entries.map(entry => {
+                  const totalMg = calculateTotalMg(entry.medicine_id, entry.pills_whole || 1, entry.pills_half || 0);
+                  return (
                   <div 
                     key={entry.entry_id}
                     className="flex items-center justify-between p-3 bg-zinc-800/50 rounded-xl"
@@ -201,7 +224,7 @@ export const Schedule = () => {
                     <div>
                       <p className="font-medium">{entry.medicine_name}</p>
                       <p className="text-sm text-zinc-400">
-                        {formatPillsDose(entry)} • {getDayLabels(entry.days)}
+                        {formatPillsDose(entry)}{totalMg ? ` = ${totalMg}mg` : ''} • {getDayLabels(entry.days)}
                       </p>
                     </div>
                     <div className="flex gap-1">
@@ -221,7 +244,8 @@ export const Schedule = () => {
                       </button>
                     </div>
                   </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
           ))}
@@ -345,6 +369,25 @@ export const Schedule = () => {
                   />
                 </div>
               </div>
+              
+              {/* Total mg display */}
+              {(formData.medicine_id || editingEntry) && (
+                <div className="p-3 bg-emerald-500/10 border border-emerald-500/30 rounded-xl" data-testid="total-mg-display">
+                  <div className="flex items-center justify-between">
+                    <span className="text-zinc-400">{language === 'da' ? 'Total dosis' : 'Total dose'}:</span>
+                    <span className="font-semibold text-emerald-400 text-lg">
+                      {(() => {
+                        const medId = editingEntry ? editingEntry.medicine_id : formData.medicine_id;
+                        const totalMg = calculateTotalMg(medId, formData.pills_whole, formData.pills_half);
+                        const totalPills = formData.pills_whole + formData.pills_half * 0.5;
+                        return totalMg 
+                          ? `${totalMg} mg` 
+                          : `${totalPills} ${language === 'da' ? 'piller' : 'pills'}`;
+                      })()}
+                    </span>
+                  </div>
+                </div>
+              )}
               
               <div className="flex gap-3 pt-4">
                 <button
