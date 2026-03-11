@@ -42,22 +42,23 @@ Build a medication tracking mobile app prototype with:
 - PIN reset via email (Resend integration ready)
 - Medicine CRUD with automatic status calculation
 - Time slots (auto-created on registration)
-- Schedule entries management
-- Medicine logging (take/undo)
+- Schedule entries with **whole/half pill dosing**
+- Medicine logging (take/undo) with fractional pill support
 - Language preference storage
 
 ### Frontend
 - Auth screens (register, login, PIN reset)
 - Dashboard with week view and today's schedule
-- Medicine list with status badges
-- Schedule management with day selection
+- Medicine list with status badges (simplified - no pills per dose)
+- Schedule management with **whole + half pill selection**
 - Settings with language switcher
 - Bottom navigation
 - Full Danish + English translations
 
 ### Testing
-- 100% backend tests passed (18/18)
-- 95% frontend tests passed
+- 100% backend tests passed
+- Pills per dose moved from Medicine to Schedule
+- Fractional stock support (float)
 
 ## Prioritized Backlog
 
