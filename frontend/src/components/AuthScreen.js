@@ -1,9 +1,15 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
-import { Pill, Mail, ArrowLeft, User, KeyRound } from 'lucide-react';
+import { Pill, Mail, ArrowLeft, User, KeyRound, Users, X, Plus } from 'lucide-react';
 
-const PinInput = ({ value, onChange, error, disabled }) => {
+const PinInput = ({ value, onChange, error, disabled, autoFocus }) => {
   const inputs = useRef([]);
+  
+  useEffect(() => {
+    if (autoFocus) {
+      inputs.current[0]?.focus();
+    }
+  }, [autoFocus]);
   
   const handleChange = (index, e) => {
     const val = e.target.value.replace(/\D/g, '');
@@ -56,24 +62,26 @@ const PinInput = ({ value, onChange, error, disabled }) => {
 };
 
 export const AuthScreen = () => {
-  const { t, register, login, requestPinReset, confirmPinReset, loading, error, setError } = useApp();
-  const [mode, setMode] = useState('welcome'); // welcome, register, login, forgot, reset
+  const { t, register, loginByEmail, removeKnownUser, loading, error, setError } = useApp();
+  const [mode, setMode] = useState('welcome');
   const [pin, setPin] = useState('');
   const [confirmPin, setConfirmPin] = useState('');
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
-  const [userId, setUserId] = useState('');
   const [resetCode, setResetCode] = useState('');
   const [pinError, setPinError] = useState('');
-  const [savedUserId, setSavedUserId] = useState('');
+  const [knownUsers, setKnownUsers] = useState([]);
+  const [selectedUser, setSelectedUser] = useState(null);
+  const { requestPinReset, confirmPinReset } = useApp();
   
   useEffect(() => {
-    const saved = localStorage.getItem('meditrack_last_user_id');
-    if (saved) {
-      setSavedUserId(saved);
-      setUserId(saved);
-    }
+    loadKnownUsers();
   }, []);
+  
+  const loadKnownUsers = () => {
+    const known = JSON.parse(localStorage.getItem('meditrack_known_users') || '[]');
+    setKnownUsers(known);
+  };
   
   const handleRegister = async (e) => {
     e.preventDefault();
@@ -89,14 +97,13 @@ export const AuthScreen = () => {
     }
     
     try {
-      const user = await register(pin, name, email);
-      localStorage.setItem('meditrack_last_user_id', user.user_id);
+      await register(pin, name, email);
     } catch (err) {
       // Error handled by context
     }
   };
   
-  const handleLogin = async (e) => {
+  const handleLoginSelected = async (e) => {
     e.preventDefault();
     setPinError('');
     
@@ -105,8 +112,9 @@ export const AuthScreen = () => {
       return;
     }
     
+    const loginEmail = selectedUser?.email || email;
     try {
-      await login(userId, pin);
+      await loginByEmail(loginEmail, pin);
     } catch (err) {
       setPinError(t('error'));
     }
@@ -130,14 +138,19 @@ export const AuthScreen = () => {
     }
     
     try {
-      const result = await confirmPinReset(email, resetCode, pin);
-      localStorage.setItem('meditrack_last_user_id', result.user_id);
-      setUserId(result.user_id);
-      setMode('login');
+      await confirmPinReset(email, resetCode, pin);
+      setMode('welcome');
       setPin('');
+      loadKnownUsers();
     } catch (err) {
       // Error handled by context
     }
+  };
+  
+  const handleRemoveUser = (userId, e) => {
+    e.stopPropagation();
+    removeKnownUser(userId);
+    loadKnownUsers();
   };
   
   const resetForm = () => {
@@ -146,11 +159,19 @@ export const AuthScreen = () => {
     setResetCode('');
     setPinError('');
     setError(null);
+    setSelectedUser(null);
   };
   
   const goToMode = (newMode) => {
     resetForm();
     setMode(newMode);
+  };
+  
+  const selectUserForLogin = (user) => {
+    resetForm();
+    setSelectedUser(user);
+    setEmail(user.email);
+    setMode('pin-login');
   };
   
   return (
@@ -164,31 +185,168 @@ export const AuthScreen = () => {
           <h1 className="text-3xl font-bold tracking-tight">{t('appName')}</h1>
         </div>
         
-        {/* Welcome Screen */}
+        {/* Welcome Screen - User Switcher */}
         {mode === 'welcome' && (
           <div className="glass-card p-8 animate-fade-in" data-testid="welcome-screen">
             <h2 className="text-xl font-semibold text-center mb-6">{t('welcome')}</h2>
             
-            {savedUserId && (
-              <button
-                onClick={() => goToMode('login')}
-                className="btn-primary w-full mb-4"
-                data-testid="login-btn"
-              >
-                <KeyRound className="w-5 h-5" />
-                {t('login')}
-              </button>
+            {knownUsers.length > 0 && (
+              <div className="mb-6">
+                <p className="text-sm text-zinc-400 mb-3">{t('knownAccounts')}</p>
+                <div className="space-y-2">
+                  {knownUsers.map(u => (
+                    <button
+                      key={u.user_id}
+                      onClick={() => selectUserForLogin(u)}
+                      className="w-full flex items-center gap-3 p-3 rounded-xl bg-zinc-800/50 hover:bg-zinc-700/50 border border-zinc-700/50 hover:border-emerald-500/40 transition-all group"
+                      data-testid={`user-select-${u.email}`}
+                    >
+                      <div className="flex items-center justify-center w-10 h-10 rounded-full bg-emerald-500/20 text-emerald-400 shrink-0">
+                        <User className="w-5 h-5" />
+                      </div>
+                      <div className="flex-1 text-left min-w-0">
+                        <div className="text-white font-medium truncate">{u.name}</div>
+                        <div className="text-xs text-zinc-400 truncate">{u.email}</div>
+                      </div>
+                      <button
+                        onClick={(e) => handleRemoveUser(u.user_id, e)}
+                        className="p-1.5 rounded-lg opacity-0 group-hover:opacity-100 hover:bg-red-500/20 text-zinc-500 hover:text-red-400 transition-all"
+                        data-testid={`remove-user-${u.email}`}
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                    </button>
+                  ))}
+                </div>
+              </div>
             )}
             
             <button
+              onClick={() => goToMode('email-login')}
+              className="btn-secondary w-full mb-3"
+              data-testid="email-login-btn"
+            >
+              <Mail className="w-5 h-5" />
+              {t('loginWithEmail')}
+            </button>
+            
+            <button
               onClick={() => goToMode('register')}
-              className={`${savedUserId ? 'btn-secondary' : 'btn-primary'} w-full`}
+              className="btn-primary w-full"
               data-testid="register-btn"
             >
-              <User className="w-5 h-5" />
+              <Plus className="w-5 h-5" />
               {t('createAccount')}
             </button>
           </div>
+        )}
+        
+        {/* PIN Login for selected user */}
+        {mode === 'pin-login' && selectedUser && (
+          <form onSubmit={handleLoginSelected} className="glass-card p-8 animate-fade-in" data-testid="pin-login-form">
+            <button
+              type="button"
+              onClick={() => goToMode('welcome')}
+              className="flex items-center gap-2 text-zinc-400 hover:text-white mb-6 transition-colors"
+            >
+              <ArrowLeft className="w-4 h-4" />
+              {t('switchUser')}
+            </button>
+            
+            <div className="text-center mb-6">
+              <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-emerald-500/20 text-emerald-400 mb-3">
+                <User className="w-8 h-8" />
+              </div>
+              <h2 className="text-xl font-semibold text-white">{selectedUser.name}</h2>
+              <p className="text-sm text-zinc-400">{selectedUser.email}</p>
+            </div>
+            
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm text-zinc-400 mb-3 text-center">{t('enterPin')}</label>
+                <PinInput value={pin} onChange={setPin} error={pinError} disabled={loading} autoFocus />
+              </div>
+              
+              {(pinError || error) && (
+                <p className="text-red-400 text-sm text-center" data-testid="login-error">{pinError || error}</p>
+              )}
+              
+              <button
+                type="submit"
+                disabled={loading}
+                className="btn-primary w-full mt-6"
+                data-testid="submit-login-btn"
+              >
+                {loading ? t('loading') : t('login')}
+              </button>
+              
+              <button
+                type="button"
+                onClick={() => { setEmail(selectedUser.email); goToMode('forgot'); }}
+                className="w-full text-center text-zinc-400 hover:text-emerald-400 transition-colors mt-2 text-sm"
+                data-testid="forgot-pin-btn"
+              >
+                {t('forgotPin')}
+              </button>
+            </div>
+          </form>
+        )}
+        
+        {/* Email Login Screen */}
+        {mode === 'email-login' && (
+          <form onSubmit={handleLoginSelected} className="glass-card p-8 animate-fade-in" data-testid="email-login-form">
+            <button
+              type="button"
+              onClick={() => goToMode('welcome')}
+              className="flex items-center gap-2 text-zinc-400 hover:text-white mb-6 transition-colors"
+            >
+              <ArrowLeft className="w-4 h-4" />
+              {t('back')}
+            </button>
+            
+            <h2 className="text-xl font-semibold mb-6">{t('loginWithEmail')}</h2>
+            
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm text-zinc-400 mb-2">{t('email')}</label>
+                <input
+                  type="email"
+                  value={email}
+                  onChange={e => setEmail(e.target.value)}
+                  className="input-field"
+                  required
+                  data-testid="login-email-input"
+                />
+              </div>
+              
+              <div>
+                <label className="block text-sm text-zinc-400 mb-2">{t('enterPin')}</label>
+                <PinInput value={pin} onChange={setPin} error={pinError} disabled={loading} />
+              </div>
+              
+              {(pinError || error) && (
+                <p className="text-red-400 text-sm text-center" data-testid="login-error">{pinError || error}</p>
+              )}
+              
+              <button
+                type="submit"
+                disabled={loading}
+                className="btn-primary w-full mt-6"
+                data-testid="submit-email-login-btn"
+              >
+                {loading ? t('loading') : t('login')}
+              </button>
+              
+              <button
+                type="button"
+                onClick={() => goToMode('forgot')}
+                className="w-full text-center text-zinc-400 hover:text-emerald-400 transition-colors mt-2 text-sm"
+                data-testid="forgot-pin-btn"
+              >
+                {t('forgotPin')}
+              </button>
+            </div>
+          </form>
         )}
         
         {/* Register Screen */}
@@ -256,69 +414,12 @@ export const AuthScreen = () => {
           </form>
         )}
         
-        {/* Login Screen */}
-        {mode === 'login' && (
-          <form onSubmit={handleLogin} className="glass-card p-8 animate-fade-in" data-testid="login-form">
-            <button
-              type="button"
-              onClick={() => goToMode('welcome')}
-              className="flex items-center gap-2 text-zinc-400 hover:text-white mb-6 transition-colors"
-            >
-              <ArrowLeft className="w-4 h-4" />
-              {t('back')}
-            </button>
-            
-            <h2 className="text-xl font-semibold mb-6">{t('login')}</h2>
-            
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm text-zinc-400 mb-2">User ID</label>
-                <input
-                  type="text"
-                  value={userId}
-                  onChange={e => setUserId(e.target.value)}
-                  className="input-field font-mono text-sm"
-                  required
-                  data-testid="userid-input"
-                />
-              </div>
-              
-              <div>
-                <label className="block text-sm text-zinc-400 mb-2">{t('enterPin')}</label>
-                <PinInput value={pin} onChange={setPin} error={pinError} disabled={loading} />
-              </div>
-              
-              {(pinError || error) && (
-                <p className="text-red-400 text-sm text-center">{pinError || error}</p>
-              )}
-              
-              <button
-                type="submit"
-                disabled={loading}
-                className="btn-primary w-full mt-6"
-                data-testid="submit-login-btn"
-              >
-                {loading ? t('loading') : t('login')}
-              </button>
-              
-              <button
-                type="button"
-                onClick={() => goToMode('forgot')}
-                className="w-full text-center text-zinc-400 hover:text-emerald-400 transition-colors mt-4"
-                data-testid="forgot-pin-btn"
-              >
-                {t('forgotPin')}
-              </button>
-            </div>
-          </form>
-        )}
-        
         {/* Forgot PIN Screen */}
         {mode === 'forgot' && (
           <form onSubmit={handleRequestReset} className="glass-card p-8 animate-fade-in" data-testid="forgot-form">
             <button
               type="button"
-              onClick={() => goToMode('login')}
+              onClick={() => goToMode('welcome')}
               className="flex items-center gap-2 text-zinc-400 hover:text-white mb-6 transition-colors"
             >
               <ArrowLeft className="w-4 h-4" />

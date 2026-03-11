@@ -1,7 +1,7 @@
-import React, { useRef, useState } from 'react';
+import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
-import { Printer, X, Download, Loader2 } from 'lucide-react';
-import jsPDF from 'jspdf';
+import { Download, X, Loader2 } from 'lucide-react';
+import { jsPDF } from 'jspdf';
 
 const DAYS = [
   { key: 'mon', da: 'Mandag', en: 'Monday', short_da: 'Man', short_en: 'Mon' },
@@ -74,15 +74,18 @@ export const PrintSchedule = ({ onClose }) => {
   }).filter(slot => slot.entries.length > 0);
 
   const generatePDF = async () => {
+    console.log('generatePDF called');
     setGenerating(true);
     
     try {
+      console.log('Creating jsPDF instance...');
       // Create PDF in landscape A4
       const doc = new jsPDF({
         orientation: 'landscape',
         unit: 'mm',
         format: 'a4'
       });
+      console.log('jsPDF instance created');
 
       const pageWidth = doc.internal.pageSize.getWidth();
       const pageHeight = doc.internal.pageSize.getHeight();
@@ -221,12 +224,26 @@ export const PrintSchedule = ({ onClose }) => {
       doc.text('MediTrack', margin, pageHeight - 10);
       doc.text(language === 'da' ? 'Hold dette skema opdateret' : 'Keep this schedule updated', pageWidth - margin, pageHeight - 10, { align: 'right' });
 
-      // Save and open
-      const fileName = `ugeskema_${user?.name?.replace(/\s+/g, '_') || 'medicin'}_${new Date().toISOString().split('T')[0]}.pdf`;
-      doc.save(fileName);
+      // Save and download
+      console.log('Saving PDF...');
+      const fileName = `ugeskema_${(user?.name || 'medicin').replace(/\s+/g, '_')}_${new Date().toISOString().split('T')[0]}.pdf`;
+      
+      // Create blob and download
+      const pdfBlob = doc.output('blob');
+      const url = URL.createObjectURL(pdfBlob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = fileName;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+      
+      console.log('PDF downloaded as:', fileName);
       
     } catch (err) {
       console.error('PDF generation error:', err);
+      alert((language === 'da' ? 'Kunne ikke generere PDF: ' : 'Could not generate PDF: ') + err.message);
     } finally {
       setGenerating(false);
     }
@@ -250,7 +267,7 @@ export const PrintSchedule = ({ onClose }) => {
           <div className="flex gap-2">
             <button
               onClick={generatePDF}
-              disabled={generating || scheduleBySlot.length === 0}
+              disabled={generating}
               className="flex items-center gap-2 px-4 py-2 bg-emerald-500 text-white rounded-lg hover:bg-emerald-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               data-testid="download-pdf-btn"
             >

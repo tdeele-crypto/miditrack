@@ -44,6 +44,7 @@ export const AppProvider = ({ children }) => {
       const userData = res.data;
       setUser(userData);
       localStorage.setItem('meditrack_user', JSON.stringify(userData));
+      saveKnownUser(userData);
       return userData;
     } catch (err) {
       setError(err.response?.data?.detail || 'Registration failed');
@@ -68,6 +69,7 @@ export const AppProvider = ({ children }) => {
       setLanguage(res.data.language || 'da');
       localStorage.setItem('meditrack_user', JSON.stringify(userData));
       localStorage.setItem('meditrack_language', res.data.language || 'da');
+      saveKnownUser(userData);
       return userData;
     } catch (err) {
       setError(err.response?.data?.detail || 'Login failed');
@@ -75,6 +77,48 @@ export const AppProvider = ({ children }) => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const loginByEmail = async (email, pin) => {
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await axios.post(`${API_URL}/api/auth/login-email`, { email, pin });
+      const userData = {
+        user_id: res.data.user_id,
+        name: res.data.name,
+        email: res.data.email,
+        language: res.data.language
+      };
+      setUser(userData);
+      setLanguage(res.data.language || 'da');
+      localStorage.setItem('meditrack_user', JSON.stringify(userData));
+      localStorage.setItem('meditrack_language', res.data.language || 'da');
+      saveKnownUser(userData);
+      return userData;
+    } catch (err) {
+      setError(err.response?.data?.detail || 'Login failed');
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const saveKnownUser = (userData) => {
+    const known = JSON.parse(localStorage.getItem('meditrack_known_users') || '[]');
+    const exists = known.findIndex(u => u.user_id === userData.user_id);
+    if (exists >= 0) {
+      known[exists] = { user_id: userData.user_id, name: userData.name, email: userData.email };
+    } else {
+      known.push({ user_id: userData.user_id, name: userData.name, email: userData.email });
+    }
+    localStorage.setItem('meditrack_known_users', JSON.stringify(known));
+  };
+
+  const removeKnownUser = (userId) => {
+    const known = JSON.parse(localStorage.getItem('meditrack_known_users') || '[]');
+    const filtered = known.filter(u => u.user_id !== userId);
+    localStorage.setItem('meditrack_known_users', JSON.stringify(filtered));
   };
 
   const logout = () => {
@@ -270,6 +314,8 @@ export const AppProvider = ({ children }) => {
     t,
     register,
     login,
+    loginByEmail,
+    removeKnownUser,
     logout,
     requestPinReset,
     confirmPinReset,

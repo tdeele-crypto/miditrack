@@ -199,6 +199,27 @@ async def login_user(login: UserLogin):
         "language": user.get("language", "da")
     }
 
+class EmailLogin(BaseModel):
+    email: EmailStr
+    pin: str
+
+@api_router.post("/auth/login-email")
+async def login_by_email(data: EmailLogin):
+    user = await db.users.find_one({"email": data.email}, {"_id": 0})
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    if user["pin_hash"] != hash_pin(data.pin):
+        raise HTTPException(status_code=401, detail="Invalid PIN")
+    
+    return {
+        "success": True,
+        "user_id": user["user_id"],
+        "name": user["name"],
+        "email": user["email"],
+        "language": user.get("language", "da")
+    }
+
 @api_router.post("/auth/request-pin-reset")
 async def request_pin_reset(request: PinResetRequest):
     user = await db.users.find_one({"email": request.email}, {"_id": 0})

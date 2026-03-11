@@ -21,6 +21,12 @@ export const translations = {
     newPin: "Ny PIN",
     sendResetCode: "Send kode",
     confirmReset: "Bekræft",
+    switchUser: "Skift bruger",
+    loginWithEmail: "Log ind med email",
+    knownAccounts: "Kendte konti",
+    removeAccount: "Fjern",
+    loginAs: "Log ind som",
+    otherAccount: "Anden konto",
     
     // Navigation
     dashboard: "Oversigt",
@@ -129,6 +135,12 @@ export const translations = {
     newPin: "New PIN",
     sendResetCode: "Send Code",
     confirmReset: "Confirm",
+    switchUser: "Switch User",
+    loginWithEmail: "Log in with email",
+    knownAccounts: "Known Accounts",
+    removeAccount: "Remove",
+    loginAs: "Log in as",
+    otherAccount: "Other Account",
     
     // Navigation
     dashboard: "Dashboard",
