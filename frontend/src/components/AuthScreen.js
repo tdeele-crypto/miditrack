@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
-import { Pill, Mail, ArrowLeft, User, KeyRound, Users, X, Plus } from 'lucide-react';
+import { Pill, Mail, ArrowLeft, User, KeyRound, X, Plus, Check } from 'lucide-react';
 
 const PinInput = ({ value, onChange, error, disabled, autoFocus }) => {
   const inputs = useRef([]);
@@ -17,7 +17,6 @@ const PinInput = ({ value, onChange, error, disabled, autoFocus }) => {
       const newPin = value.split('');
       newPin[index] = val;
       onChange(newPin.join(''));
-      
       if (val && index < 3) {
         inputs.current[index + 1]?.focus();
       }
@@ -34,9 +33,7 @@ const PinInput = ({ value, onChange, error, disabled, autoFocus }) => {
     e.preventDefault();
     const pasted = e.clipboardData.getData('text').replace(/\D/g, '').slice(0, 4);
     onChange(pasted);
-    if (pasted.length === 4) {
-      inputs.current[3]?.focus();
-    }
+    if (pasted.length === 4) inputs.current[3]?.focus();
   };
   
   return (
@@ -62,7 +59,7 @@ const PinInput = ({ value, onChange, error, disabled, autoFocus }) => {
 };
 
 export const AuthScreen = () => {
-  const { t, register, loginByEmail, removeKnownUser, loading, error, setError } = useApp();
+  const { t, register, loginByEmail, saveKnownUser, removeKnownUser, loading, error, setError, requestPinReset, confirmPinReset } = useApp();
   const [mode, setMode] = useState('welcome');
   const [pin, setPin] = useState('');
   const [confirmPin, setConfirmPin] = useState('');
@@ -72,7 +69,7 @@ export const AuthScreen = () => {
   const [pinError, setPinError] = useState('');
   const [knownUsers, setKnownUsers] = useState([]);
   const [selectedUser, setSelectedUser] = useState(null);
-  const { requestPinReset, confirmPinReset } = useApp();
+  const [rememberUser, setRememberUser] = useState(true);
   
   useEffect(() => {
     loadKnownUsers();
@@ -86,35 +83,27 @@ export const AuthScreen = () => {
   const handleRegister = async (e) => {
     e.preventDefault();
     setPinError('');
-    
-    if (pin.length !== 4) {
-      setPinError(t('pinMustBe4'));
-      return;
-    }
-    if (pin !== confirmPin) {
-      setPinError(t('pinsDontMatch'));
-      return;
-    }
-    
+    if (pin.length !== 4) { setPinError(t('pinMustBe4')); return; }
+    if (pin !== confirmPin) { setPinError(t('pinsDontMatch')); return; }
     try {
-      await register(pin, name, email);
-    } catch (err) {
-      // Error handled by context
-    }
+      const userData = await register(pin, name, email);
+      if (rememberUser && userData) {
+        saveKnownUser(userData);
+      }
+    } catch (err) {}
   };
   
   const handleLoginSelected = async (e) => {
     e.preventDefault();
     setPinError('');
-    
-    if (pin.length !== 4) {
-      setPinError(t('pinMustBe4'));
-      return;
-    }
-    
+    if (pin.length !== 4) { setPinError(t('pinMustBe4')); return; }
     const loginEmail = selectedUser?.email || email;
     try {
-      await loginByEmail(loginEmail, pin);
+      const userData = await loginByEmail(loginEmail, pin);
+      if (rememberUser && userData) {
+        saveKnownUser(userData);
+        loadKnownUsers();
+      }
     } catch (err) {
       setPinError(t('error'));
     }
@@ -125,26 +114,18 @@ export const AuthScreen = () => {
     try {
       await requestPinReset(email);
       setMode('reset');
-    } catch (err) {
-      // Error handled by context
-    }
+    } catch (err) {}
   };
   
   const handleConfirmReset = async (e) => {
     e.preventDefault();
-    if (pin.length !== 4) {
-      setPinError(t('pinMustBe4'));
-      return;
-    }
-    
+    if (pin.length !== 4) { setPinError(t('pinMustBe4')); return; }
     try {
       await confirmPinReset(email, resetCode, pin);
       setMode('welcome');
       setPin('');
       loadKnownUsers();
-    } catch (err) {
-      // Error handled by context
-    }
+    } catch (err) {}
   };
   
   const handleRemoveUser = (userId, e) => {
@@ -154,18 +135,11 @@ export const AuthScreen = () => {
   };
   
   const resetForm = () => {
-    setPin('');
-    setConfirmPin('');
-    setResetCode('');
-    setPinError('');
-    setError(null);
-    setSelectedUser(null);
+    setPin(''); setConfirmPin(''); setResetCode('');
+    setPinError(''); setError(null); setSelectedUser(null);
   };
   
-  const goToMode = (newMode) => {
-    resetForm();
-    setMode(newMode);
-  };
+  const goToMode = (newMode) => { resetForm(); setMode(newMode); };
   
   const selectUserForLogin = (user) => {
     resetForm();
@@ -173,6 +147,24 @@ export const AuthScreen = () => {
     setEmail(user.email);
     setMode('pin-login');
   };
+  
+  const RememberCheckbox = () => (
+    <label className="flex items-center gap-3 cursor-pointer group" data-testid="remember-user-checkbox">
+      <div
+        onClick={() => setRememberUser(!rememberUser)}
+        className={`w-5 h-5 rounded border-2 flex items-center justify-center transition-all ${
+          rememberUser 
+            ? 'bg-emerald-500 border-emerald-500' 
+            : 'border-zinc-600 group-hover:border-zinc-400'
+        }`}
+      >
+        {rememberUser && <Check className="w-3.5 h-3.5 text-white" />}
+      </div>
+      <span className="text-sm text-zinc-400 group-hover:text-zinc-300 select-none" onClick={() => setRememberUser(!rememberUser)}>
+        {t('rememberUser')}
+      </span>
+    </label>
+  );
   
   return (
     <div className="min-h-screen flex items-center justify-center p-4" data-testid="auth-screen">
@@ -185,20 +177,20 @@ export const AuthScreen = () => {
           <h1 className="text-3xl font-bold tracking-tight">{t('appName')}</h1>
         </div>
         
-        {/* Welcome Screen - User Switcher */}
+        {/* Welcome Screen */}
         {mode === 'welcome' && (
           <div className="glass-card p-8 animate-fade-in" data-testid="welcome-screen">
             <h2 className="text-xl font-semibold text-center mb-6">{t('welcome')}</h2>
             
             {knownUsers.length > 0 && (
               <div className="mb-6">
-                <p className="text-sm text-zinc-400 mb-3">{t('knownAccounts')}</p>
+                <p className="text-sm text-zinc-400 mb-3">{t('savedAccounts')}</p>
                 <div className="space-y-2">
                   {knownUsers.map(u => (
-                    <button
+                    <div
                       key={u.user_id}
+                      className="w-full flex items-center gap-3 p-3 rounded-xl bg-zinc-800/50 hover:bg-zinc-700/50 border border-zinc-700/50 hover:border-emerald-500/40 transition-all group cursor-pointer"
                       onClick={() => selectUserForLogin(u)}
-                      className="w-full flex items-center gap-3 p-3 rounded-xl bg-zinc-800/50 hover:bg-zinc-700/50 border border-zinc-700/50 hover:border-emerald-500/40 transition-all group"
                       data-testid={`user-select-${u.email}`}
                     >
                       <div className="flex items-center justify-center w-10 h-10 rounded-full bg-emerald-500/20 text-emerald-400 shrink-0">
@@ -215,7 +207,7 @@ export const AuthScreen = () => {
                       >
                         <X className="w-4 h-4" />
                       </button>
-                    </button>
+                    </div>
                   ))}
                 </div>
               </div>
@@ -324,6 +316,8 @@ export const AuthScreen = () => {
                 <PinInput value={pin} onChange={setPin} error={pinError} disabled={loading} />
               </div>
               
+              <RememberCheckbox />
+              
               {(pinError || error) && (
                 <p className="text-red-400 text-sm text-center" data-testid="login-error">{pinError || error}</p>
               )}
@@ -331,7 +325,7 @@ export const AuthScreen = () => {
               <button
                 type="submit"
                 disabled={loading}
-                className="btn-primary w-full mt-6"
+                className="btn-primary w-full mt-4"
                 data-testid="submit-email-login-btn"
               >
                 {loading ? t('loading') : t('login')}
@@ -366,48 +360,28 @@ export const AuthScreen = () => {
             <div className="space-y-4">
               <div>
                 <label className="block text-sm text-zinc-400 mb-2">{t('name')}</label>
-                <input
-                  type="text"
-                  value={name}
-                  onChange={e => setName(e.target.value)}
-                  className="input-field"
-                  required
-                  data-testid="name-input"
-                />
+                <input type="text" value={name} onChange={e => setName(e.target.value)} className="input-field" required data-testid="name-input" />
               </div>
-              
               <div>
                 <label className="block text-sm text-zinc-400 mb-2">{t('email')}</label>
-                <input
-                  type="email"
-                  value={email}
-                  onChange={e => setEmail(e.target.value)}
-                  className="input-field"
-                  required
-                  data-testid="email-input"
-                />
+                <input type="email" value={email} onChange={e => setEmail(e.target.value)} className="input-field" required data-testid="email-input" />
               </div>
-              
               <div>
                 <label className="block text-sm text-zinc-400 mb-2">{t('pin')}</label>
                 <PinInput value={pin} onChange={setPin} error={pinError} disabled={loading} />
               </div>
-              
               <div>
                 <label className="block text-sm text-zinc-400 mb-2">{t('confirmPin')}</label>
                 <PinInput value={confirmPin} onChange={setConfirmPin} error={pinError} disabled={loading} />
               </div>
               
+              <RememberCheckbox />
+              
               {(pinError || error) && (
                 <p className="text-red-400 text-sm text-center">{pinError || error}</p>
               )}
               
-              <button
-                type="submit"
-                disabled={loading}
-                className="btn-primary w-full mt-6"
-                data-testid="submit-register-btn"
-              >
+              <button type="submit" disabled={loading} className="btn-primary w-full mt-4" data-testid="submit-register-btn">
                 {loading ? t('loading') : t('createAccount')}
               </button>
             </div>
@@ -417,43 +391,20 @@ export const AuthScreen = () => {
         {/* Forgot PIN Screen */}
         {mode === 'forgot' && (
           <form onSubmit={handleRequestReset} className="glass-card p-8 animate-fade-in" data-testid="forgot-form">
-            <button
-              type="button"
-              onClick={() => goToMode('welcome')}
-              className="flex items-center gap-2 text-zinc-400 hover:text-white mb-6 transition-colors"
-            >
-              <ArrowLeft className="w-4 h-4" />
-              {t('back')}
+            <button type="button" onClick={() => goToMode('welcome')} className="flex items-center gap-2 text-zinc-400 hover:text-white mb-6 transition-colors">
+              <ArrowLeft className="w-4 h-4" />{t('back')}
             </button>
-            
             <h2 className="text-xl font-semibold mb-6">{t('resetPin')}</h2>
-            
             <div className="space-y-4">
               <div>
                 <label className="block text-sm text-zinc-400 mb-2">{t('email')}</label>
                 <div className="relative">
                   <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-zinc-500" />
-                  <input
-                    type="email"
-                    value={email}
-                    onChange={e => setEmail(e.target.value)}
-                    className="input-field pl-12"
-                    required
-                    data-testid="reset-email-input"
-                  />
+                  <input type="email" value={email} onChange={e => setEmail(e.target.value)} className="input-field pl-12" required data-testid="reset-email-input" />
                 </div>
               </div>
-              
-              {error && (
-                <p className="text-red-400 text-sm text-center">{error}</p>
-              )}
-              
-              <button
-                type="submit"
-                disabled={loading}
-                className="btn-primary w-full mt-6"
-                data-testid="send-reset-btn"
-              >
+              {error && <p className="text-red-400 text-sm text-center">{error}</p>}
+              <button type="submit" disabled={loading} className="btn-primary w-full mt-6" data-testid="send-reset-btn">
                 {loading ? t('loading') : t('sendResetCode')}
               </button>
             </div>
@@ -463,46 +414,21 @@ export const AuthScreen = () => {
         {/* Reset PIN Screen */}
         {mode === 'reset' && (
           <form onSubmit={handleConfirmReset} className="glass-card p-8 animate-fade-in" data-testid="reset-form">
-            <button
-              type="button"
-              onClick={() => goToMode('forgot')}
-              className="flex items-center gap-2 text-zinc-400 hover:text-white mb-6 transition-colors"
-            >
-              <ArrowLeft className="w-4 h-4" />
-              {t('back')}
+            <button type="button" onClick={() => goToMode('forgot')} className="flex items-center gap-2 text-zinc-400 hover:text-white mb-6 transition-colors">
+              <ArrowLeft className="w-4 h-4" />{t('back')}
             </button>
-            
             <h2 className="text-xl font-semibold mb-6">{t('resetPin')}</h2>
-            
             <div className="space-y-4">
               <div>
                 <label className="block text-sm text-zinc-400 mb-2">{t('enterResetCode')}</label>
-                <input
-                  type="text"
-                  value={resetCode}
-                  onChange={e => setResetCode(e.target.value.toUpperCase())}
-                  className="input-field text-center tracking-widest font-mono"
-                  maxLength={6}
-                  required
-                  data-testid="reset-code-input"
-                />
+                <input type="text" value={resetCode} onChange={e => setResetCode(e.target.value.toUpperCase())} className="input-field text-center tracking-widest font-mono" maxLength={6} required data-testid="reset-code-input" />
               </div>
-              
               <div>
                 <label className="block text-sm text-zinc-400 mb-2">{t('newPin')}</label>
                 <PinInput value={pin} onChange={setPin} error={pinError} disabled={loading} />
               </div>
-              
-              {(pinError || error) && (
-                <p className="text-red-400 text-sm text-center">{pinError || error}</p>
-              )}
-              
-              <button
-                type="submit"
-                disabled={loading}
-                className="btn-primary w-full mt-6"
-                data-testid="confirm-reset-btn"
-              >
+              {(pinError || error) && <p className="text-red-400 text-sm text-center">{pinError || error}</p>}
+              <button type="submit" disabled={loading} className="btn-primary w-full mt-6" data-testid="confirm-reset-btn">
                 {loading ? t('loading') : t('confirmReset')}
               </button>
             </div>

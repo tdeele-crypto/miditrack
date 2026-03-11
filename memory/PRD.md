@@ -1,96 +1,61 @@
-# MediTrack - Medication Tracking App PRD
+# MediTrack - Product Requirements Document
 
 ## Original Problem Statement
-Build a medication tracking mobile app prototype with:
-- Medicine inventory management with stock tracking
-- Weekly schedule for medications at different time slots (Morning, Noon, Evening, Night)
-- Status indicators: Green (OK), Yellow (under 1 month), Red (within reminder period)
-- PIN code authentication with email-based reset
-- User profile with name and email
-- Multi-language support (Danish + English)
-- Dark theme
+Medicine management app to track medicine stock, create weekly dosage schedules, set reorder reminders with status indicators, and support PIN/biometric login. Must support Danish and English.
 
-## User Personas
-1. **Primary User**: People managing multiple daily medications who need:
-   - Easy inventory tracking
-   - Visual low-stock alerts
-   - Simple scheduling system
-   - Reminders to reorder medicine
-
-## Core Requirements (Static)
-- PIN-based authentication (4 digits)
-- Medicine CRUD with stock tracking
-- Time slot management (Morgen, Middag, Aften, Nat)
-- Weekly schedule with day selection
-- Status indicators (green/yellow/red)
-- Take medicine logging with undo
-- Language switching (DA/EN)
-- Dark theme UI
+## Core Requirements
+- PIN-code authentication with email-based reset
+- Medicine inventory tracking (name, dosage, stock, reminders)
+- Weekly schedule with different doses per day and time of day (Morning, Noon, Evening, Night)
+- Status indicators (green/yellow/red) for medicine stock levels
+- Downloadable PDF of weekly schedule (landscape)
+- Dark theme, Danish/English language support
+- Automatic stock deduction (no "mark as taken" button)
+- User switching on login screen with "Save user" checkbox
 
 ## Architecture
-- **Frontend**: React 19 + Tailwind CSS
+- **Frontend**: React + Tailwind CSS + Shadcn UI
 - **Backend**: FastAPI + MongoDB
-- **Auth**: PIN-based (hashed with SHA256)
-- **Email**: Resend API (for PIN reset)
-- **Styling**: Custom dark theme with Outfit font
+- **PDF**: jsPDF (client-side generation)
+- **i18n**: Custom translation system (da/en)
 
-## What's Been Implemented ✅
-**Date: March 2026**
+## What's Been Implemented (as of March 2026)
+- [x] User registration with PIN (4-digit)
+- [x] Email-based login (POST /api/auth/login-email)
+- [x] User switching: saved users on login screen, click to enter PIN
+- [x] "Gem bruger" (Save user) checkbox - only saved users appear on welcome screen
+- [x] PIN reset via email (Resend integration)
+- [x] Medicine CRUD with stock tracking and status indicators
+- [x] Weekly schedule with per-day dosing
+- [x] Time slots (Morning, Noon, Evening, Night)
+- [x] Dashboard with week overview
+- [x] Printable weekly schedule view
+- [x] PDF download (jsPDF, landscape A4)
+- [x] Dark theme
+- [x] Danish/English language support
+- [x] Settings page (profile, language, logout)
 
-### Backend API
-- User registration/login with PIN
-- PIN reset via email (Resend integration ready)
-- Medicine CRUD with automatic status calculation
-- Time slots (auto-created on registration)
-- Schedule entries with **whole/half pill dosing**
-- Medicine logging (take/undo) with fractional pill support
-- Language preference storage
+## Key API Endpoints
+- POST /api/auth/register
+- POST /api/auth/login
+- POST /api/auth/login-email
+- POST /api/auth/request-pin-reset
+- POST /api/auth/confirm-pin-reset
+- GET/POST /api/medicines/{user_id}
+- PUT/DELETE /api/medicines/{user_id}/{medicine_id}
+- GET/POST /api/schedule/{user_id}
+- PUT/DELETE /api/schedule/{user_id}/{entry_id}
+- GET /api/timeslots/{user_id}
 
-### Frontend
-- Auth screens (register, login, PIN reset)
-- Dashboard with week view and today's schedule
-- Medicine list with status badges (simplified - no pills per dose)
-- Schedule management with **whole + half pill selection**
-- Settings with language switcher
-- Bottom navigation
-- Full Danish + English translations
+## DB Collections
+- users: user_id, name, email, pin_hash, language
+- medicines: medicine_id, user_id, name, dosage, stock_count, reminder_days_before
+- schedule_entries: entry_id, user_id, medicine_id, slot_id, day_doses
+- time_slots: slot_id, user_id, name, time, order
+- pin_resets: email, reset_code, expires_at, used
 
-### Testing
-- 100% backend tests passed
-- Pills per dose moved from Medicine to Schedule
-- Fractional stock support (float)
-
-## Prioritized Backlog
-
-### P0 (Critical) - DONE ✅
-- [x] User authentication
-- [x] Medicine inventory
-- [x] Weekly schedule
-- [x] Status indicators
-- [x] Language support
-
-### P1 (Important) - Future
-- [ ] Resend API key configuration for email
-- [ ] Edit time slot times
-- [ ] Stock adjustment history
-- [ ] Export data
-
-### P2 (Nice to Have) - Future
-- [ ] Push notifications (PWA/Native)
-- [ ] Biometric authentication
-- [ ] Medicine images/icons
-- [ ] Multiple user profiles
-- [ ] Dark/Light theme toggle
-
-## Next Tasks
-1. Configure Resend API key for production email
-2. Convert to React Native/Expo for Google Play
-3. Add push notification support
-4. Implement biometric login
-
-## Technical Debt
-- None significant
-
-## Deployment Notes
-- Web prototype ready for testing
-- For Google Play: Convert to React Native or wrap as PWA
+## Backlog
+- P1: Biometric login (WebAuthn API for web, or native when ported)
+- P1: Full end-to-end regression testing
+- P2: Port to React Native/Expo
+- P2: Native push notifications for reminders

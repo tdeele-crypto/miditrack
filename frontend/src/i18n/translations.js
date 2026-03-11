@@ -24,9 +24,11 @@ export const translations = {
     switchUser: "Skift bruger",
     loginWithEmail: "Log ind med email",
     knownAccounts: "Kendte konti",
+    savedAccounts: "Gemte brugere",
     removeAccount: "Fjern",
     loginAs: "Log ind som",
     otherAccount: "Anden konto",
+    rememberUser: "Gem bruger",
     
     // Navigation
     dashboard: "Oversigt",
@@ -138,9 +140,11 @@ export const translations = {
     switchUser: "Switch User",
     loginWithEmail: "Log in with email",
     knownAccounts: "Known Accounts",
+    savedAccounts: "Saved Users",
     removeAccount: "Remove",
     loginAs: "Log in as",
     otherAccount: "Other Account",
+    rememberUser: "Remember user",
     
     // Navigation
     dashboard: "Dashboard",

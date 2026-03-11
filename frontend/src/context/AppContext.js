@@ -44,7 +44,6 @@ export const AppProvider = ({ children }) => {
       const userData = res.data;
       setUser(userData);
       localStorage.setItem('meditrack_user', JSON.stringify(userData));
-      saveKnownUser(userData);
       return userData;
     } catch (err) {
       setError(err.response?.data?.detail || 'Registration failed');
@@ -94,7 +93,6 @@ export const AppProvider = ({ children }) => {
       setLanguage(res.data.language || 'da');
       localStorage.setItem('meditrack_user', JSON.stringify(userData));
       localStorage.setItem('meditrack_language', res.data.language || 'da');
-      saveKnownUser(userData);
       return userData;
     } catch (err) {
       setError(err.response?.data?.detail || 'Login failed');
@@ -315,6 +313,7 @@ export const AppProvider = ({ children }) => {
     register,
     login,
     loginByEmail,
+    saveKnownUser,
     removeKnownUser,
     logout,
     requestPinReset,
