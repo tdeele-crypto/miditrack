@@ -18,7 +18,7 @@ export const Navigation = ({ currentPage, onNavigate }) => {
   ];
   
   return (
-    <nav className="fixed bottom-0 left-0 right-0 bg-[#12121a]/95 backdrop-blur-lg border-t border-zinc-800 safe-area-inset-bottom" data-testid="navigation">
+    <nav className="fixed bottom-0 left-0 right-0 z-40 bg-[#12121a]/95 backdrop-blur-lg border-t border-zinc-800 safe-area-inset-bottom" data-testid="navigation">
       <div className="max-w-2xl mx-auto flex justify-around py-2">
         {navItems.map(item => {
           const Icon = item.icon;
