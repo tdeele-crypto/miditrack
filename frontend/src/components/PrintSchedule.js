@@ -117,9 +117,14 @@ export const PrintSchedule = ({ onClose }) => {
 
   const generatePDF = () => {
     setGenerating(true);
-    // Open server-generated PDF directly in browser
     const url = `${API_URL}/api/schedule/${user.user_id}/pdf?week_offset=${weekOffset}&lang=${language}`;
-    window.open(url, '_blank');
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `ugeskema_uge${weekNumber}.pdf`;
+    link.style.display = 'none';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
     setGenerating(false);
   };
 
