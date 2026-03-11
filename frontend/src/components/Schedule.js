@@ -618,7 +618,7 @@ export const Schedule = () => {
                       </div>
                       <button
                         type="button"
-                        onClick={() => { setOrdData({ ...formData.special_ordination, time_of_day_id: '' }); setShowOrdination(true); }}
+                        onClick={() => { setOrdData({ ...formData.special_ordination, time_of_day_id: formData.slot_id || editingEntry?.slot_id || '' }); setShowOrdination(true); }}
                         className="mt-2 text-xs text-emerald-400 hover:underline"
                       >
                         {t('edit')}
@@ -627,7 +627,7 @@ export const Schedule = () => {
                   ) : (
                     <button
                       type="button"
-                      onClick={() => { setOrdData({ start_date: null, end_date: null, repeat: 'daily', time_of_day_id: '' }); setShowOrdination(true); }}
+                      onClick={() => { setOrdData({ start_date: null, end_date: null, repeat: 'daily', time_of_day_id: editingEntry?.slot_id || '' }); setShowOrdination(true); }}
                       className="w-full py-3 rounded-xl border-2 border-dashed border-zinc-700 text-zinc-400 hover:border-emerald-500/50 hover:text-emerald-400 transition-all flex items-center justify-center gap-2 text-sm"
                       data-testid="special-ordination-btn-edit"
                     >

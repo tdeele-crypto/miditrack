@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
-import { format, addDays, addWeeks, startOfWeek, isSameDay } from 'date-fns';
+import { format, addDays, addWeeks, startOfWeek, isSameDay, parseISO, differenceInCalendarDays, differenceInCalendarWeeks, getDate } from 'date-fns';
 import { da, enUS } from 'date-fns/locale';
 import { Clock, AlertTriangle, Printer, Pill, ChevronLeft, ChevronRight } from 'lucide-react';
 import { PrintSchedule } from './PrintSchedule';
@@ -33,15 +33,38 @@ export const Dashboard = () => {
     return value;
   };
 
+  const isSpecialOrdinationActive = (ord, date) => {
+    if (!ord || !ord.start_date) return false;
+    const start = parseISO(ord.start_date);
+    if (date < start) return false;
+    if (ord.end_date) {
+      const end = parseISO(ord.end_date);
+      if (date > end) return false;
+    }
+    const daysDiff = differenceInCalendarDays(date, start);
+    switch (ord.repeat) {
+      case 'daily': return true;
+      case 'weekly': return date.getDay() === start.getDay();
+      case 'biweekly': return date.getDay() === start.getDay() && differenceInCalendarWeeks(date, start, { weekStartsOn: start.getDay() }) % 2 === 0;
+      case 'monthly': return getDate(date) === getDate(start);
+      default: return daysDiff === 0;
+    }
+  };
+
   const todaySchedule = timeSlots.map(slot => {
     const entries = schedule.filter(s => {
+      if (s.slot_id !== slot.slot_id) return false;
       const dayDoses = s.day_doses || {};
-      return s.slot_id === slot.slot_id && dayDoses[dayKey];
+      // Normal schedule: check day_doses for selected day
+      if (dayDoses[dayKey]) return true;
+      // Special ordination: check if active on selected date
+      if (s.special_ordination) return isSpecialOrdinationActive(s.special_ordination, selectedDate);
+      return false;
     });
     
     const medicines_for_slot = entries.map(entry => {
       const medicine = medicines.find(m => m.medicine_id === entry.medicine_id);
-      const dayDose = entry.day_doses?.[dayKey] || { whole: 1, half: 0 };
+      const dayDose = entry.day_doses?.[dayKey] || (entry.special_ordination ? { whole: 1, half: 0 } : { whole: 1, half: 0 });
       const pillsWhole = dayDose.whole || 0;
       const pillsHalf = dayDose.half || 0;
       const totalPills = pillsWhole + pillsHalf * 0.5;
@@ -54,7 +77,8 @@ export const Dashboard = () => {
         pills_whole: pillsWhole,
         pills_half: pillsHalf,
         total_pills: totalPills,
-        total_mg: totalMg
+        total_mg: totalMg,
+        is_special: !!entry.special_ordination
       };
     }).filter(e => e.medicine);
     
@@ -196,6 +220,9 @@ export const Dashboard = () => {
                         <div>
                           <p className="font-medium">{item.medicine?.name}</p>
                           <p className="text-xs text-zinc-500">{item.medicine?.dosage}</p>
+                          {item.is_special && (
+                            <p className="text-xs text-emerald-400 mt-0.5">{language === 'da' ? 'Special ordination' : 'Special ordination'}</p>
+                          )}
                         </div>
                       </div>
                       <div className="text-right">
