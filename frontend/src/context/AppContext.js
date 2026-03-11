@@ -82,7 +82,6 @@ export const AppProvider = ({ children }) => {
     setMedicines([]);
     setTimeSlots([]);
     setSchedule([]);
-    setLogs([]);
     localStorage.removeItem('meditrack_user');
   };
 
