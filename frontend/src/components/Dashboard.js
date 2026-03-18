@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { format, addDays, addWeeks, startOfWeek, isSameDay, parseISO, differenceInCalendarDays, differenceInCalendarWeeks, getDate } from 'date-fns';
 import { da, enUS } from 'date-fns/locale';
-import { Clock, AlertTriangle, Printer, Pill, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Clock, AlertTriangle, Printer, Pill, ChevronLeft, ChevronRight, BarChart3, X } from 'lucide-react';
 import { PrintSchedule } from './PrintSchedule';
 
 const DayNames = {
@@ -18,6 +18,7 @@ export const Dashboard = () => {
   const [currentWeekStart, setCurrentWeekStart] = useState(startOfWeek(new Date(), { weekStartsOn: 1 }));
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [showPrintSchedule, setShowPrintSchedule] = useState(false);
+  const [showStockChart, setShowStockChart] = useState(false);
   
   const dayKey = DayKeys[selectedDate.getDay()];
   const locale = language === 'da' ? da : enUS;
@@ -111,14 +112,22 @@ export const Dashboard = () => {
           <h1 className="text-2xl font-bold mb-1">{t('dashboard')}</h1>
           <p className="text-zinc-400">{t('welcome')}, {user?.name}</p>
         </div>
-        <button
-          onClick={() => setShowPrintSchedule(true)}
-          className="flex items-center gap-2 px-3 py-2 bg-zinc-800 hover:bg-zinc-700 rounded-xl transition-colors"
-          data-testid="open-print-btn"
-        >
-          <Printer className="w-5 h-5 text-emerald-400" />
-          <span className="text-sm hidden sm:inline">{language === 'da' ? 'Ugeskema' : 'Weekly'}</span>
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setShowStockChart(true)}
+            className="p-2 bg-zinc-800 hover:bg-zinc-700 rounded-xl transition-colors"
+            data-testid="open-chart-btn"
+          >
+            <BarChart3 className="w-5 h-5 text-emerald-400" />
+          </button>
+          <button
+            onClick={() => setShowPrintSchedule(true)}
+            className="p-2 bg-zinc-800 hover:bg-zinc-700 rounded-xl transition-colors"
+            data-testid="open-print-btn"
+          >
+            <Printer className="w-5 h-5 text-emerald-400" />
+          </button>
+        </div>
       </div>
       
       {/* Week Navigation */}
@@ -266,6 +275,52 @@ export const Dashboard = () => {
 
       {showPrintSchedule && (
         <PrintSchedule onClose={() => setShowPrintSchedule(false)} />
+      )}
+
+      {/* Stock Chart Modal */}
+      {showStockChart && (
+        <div className="fixed inset-0 bg-black/80 z-50 flex items-start justify-center overflow-auto" data-testid="stock-chart-modal">
+          <div className="w-full max-w-lg mx-4 mt-8 mb-8 glass-card p-5 animate-fade-in">
+            <div className="flex items-center justify-between mb-5">
+              <h2 className="text-lg font-bold text-white">{language === 'da' ? 'Lagerstatus' : 'Stock Status'}</h2>
+              <button onClick={() => setShowStockChart(false)} className="p-2 hover:bg-zinc-700 rounded-lg">
+                <X className="w-5 h-5 text-zinc-400" />
+              </button>
+            </div>
+            {medicines.length === 0 ? (
+              <p className="text-zinc-500 text-sm text-center py-8">{language === 'da' ? 'Ingen medicin tilføjet' : 'No medicines added'}</p>
+            ) : (
+              <div className="space-y-3">
+                {medicines.map(med => {
+                  const maxStock = Math.max(...medicines.map(m => m.stock_count || 0), 1);
+                  const pct = Math.min(((med.stock_count || 0) / maxStock) * 100, 100);
+                  const barColor = med.status === 'green' ? 'bg-emerald-500' : med.status === 'yellow' ? 'bg-amber-500' : 'bg-red-500';
+                  const textColor = med.status === 'green' ? 'text-emerald-400' : med.status === 'yellow' ? 'text-amber-400' : 'text-red-400';
+                  return (
+                    <div key={med.medicine_id} data-testid={`chart-bar-${med.medicine_id}`}>
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="text-sm font-medium text-white truncate mr-2">{med.name}</span>
+                        <span className={`text-sm font-bold ${textColor} shrink-0`}>{med.stock_count || 0} stk.</span>
+                      </div>
+                      <div className="w-full h-5 bg-zinc-800 rounded-full overflow-hidden">
+                        <div
+                          className={`h-full rounded-full ${barColor} transition-all duration-500`}
+                          style={{ width: `${Math.max(pct, 2)}%` }}
+                        />
+                      </div>
+                      <div className="flex justify-between mt-0.5">
+                        <span className="text-[10px] text-zinc-500">{med.dosage}</span>
+                        <span className="text-[10px] text-zinc-500">
+                          {med.days_until_empty != null ? `${med.days_until_empty} ${language === 'da' ? 'dage' : 'days'}` : ''}
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        </div>
       )}
     </div>
   );
