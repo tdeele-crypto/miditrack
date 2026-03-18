@@ -162,6 +162,37 @@ def calculate_medicine_status(stock_count: int, daily_pills: float, reminder_day
     else:
         return "green", days_until_empty
 
+def calculate_daily_pills(schedule_entries: list) -> float:
+    """Calculate average daily pill consumption from schedule entries including special ordinations."""
+    weekly_pills = 0
+    special_daily_pills = 0
+    
+    for entry in schedule_entries:
+        # Normal day_doses
+        day_doses = entry.get("day_doses", {})
+        for day, dose in day_doses.items():
+            if isinstance(dose, dict):
+                pills = (dose.get("whole", 0) or 0) + (dose.get("half", 0) or 0) * 0.5
+                weekly_pills += pills
+        
+        # Special ordinations
+        ord_data = entry.get("special_ordination")
+        if ord_data and ord_data.get("start_date"):
+            repeat = ord_data.get("repeat", "daily")
+            # Default 1 pill per occurrence
+            pills_per_occurrence = 1
+            if repeat == "daily":
+                special_daily_pills += pills_per_occurrence
+            elif repeat == "weekly":
+                special_daily_pills += pills_per_occurrence / 7
+            elif repeat == "biweekly":
+                special_daily_pills += pills_per_occurrence / 14
+            elif repeat == "monthly":
+                special_daily_pills += pills_per_occurrence / 30
+    
+    daily_pills = (weekly_pills / 7) + special_daily_pills
+    return daily_pills
+
 # ============== AUTH ENDPOINTS ==============
 
 @api_router.post("/auth/register", response_model=UserResponse)
@@ -353,6 +384,7 @@ async def create_medicine(user_id: str, medicine: MedicineCreate):
         "cancel_date": medicine.cancel_date,
         "end_date": medicine.end_date,
         "repeat_interval": medicine.repeat_interval,
+        "stock_updated_at": datetime.now(timezone.utc).isoformat(),
         "created_at": datetime.now(timezone.utc).isoformat()
     }
     await db.medicines.insert_one(medicine_doc)
@@ -384,14 +416,34 @@ async def get_medicines(user_id: str):
             {"user_id": user_id, "medicine_id": med["medicine_id"]}, {"_id": 0}
         ).to_list(100)
         
-        weekly_pills = 0
-        for entry in schedule_entries:
-            day_doses = entry.get("day_doses", {})
-            for day, dose in day_doses.items():
-                pills = dose.get("whole", 0) + dose.get("half", 0) * 0.5
-                weekly_pills += pills
+        daily_pills = calculate_daily_pills(schedule_entries)
         
-        daily_pills = weekly_pills / 7 if weekly_pills > 0 else 0
+        # Auto-deduct stock based on days since last update
+        stock_count = med["stock_count"]
+        last_updated = med.get("stock_updated_at")
+        now = datetime.now(timezone.utc)
+        if daily_pills > 0 and last_updated:
+            try:
+                last_dt = datetime.fromisoformat(last_updated) if isinstance(last_updated, str) else last_updated
+                if last_dt.tzinfo is None:
+                    last_dt = last_dt.replace(tzinfo=timezone.utc)
+                days_passed = (now - last_dt).total_seconds() / 86400
+                if days_passed >= 1:
+                    full_days = int(days_passed)
+                    pills_consumed = daily_pills * full_days
+                    stock_count = max(0, stock_count - pills_consumed)
+                    await db.medicines.update_one(
+                        {"medicine_id": med["medicine_id"]},
+                        {"$set": {"stock_count": round(stock_count, 1), "stock_updated_at": now.isoformat()}}
+                    )
+            except Exception:
+                pass
+        elif daily_pills > 0 and not last_updated:
+            # Initialize stock_updated_at for existing medicines
+            await db.medicines.update_one(
+                {"medicine_id": med["medicine_id"]},
+                {"$set": {"stock_updated_at": now.isoformat()}}
+            )
         
         status, days_until_empty = calculate_medicine_status(
             med["stock_count"], daily_pills, med["reminder_days_before"]
@@ -426,6 +478,10 @@ async def update_medicine(user_id: str, medicine_id: str, update: MedicineUpdate
     if not update_dict:
         raise HTTPException(status_code=400, detail="No fields to update")
     
+    # Reset stock_updated_at when stock_count changes
+    if "stock_count" in update_dict:
+        update_dict["stock_updated_at"] = datetime.now(timezone.utc).isoformat()
+    
     result = await db.medicines.update_one(
         {"user_id": user_id, "medicine_id": medicine_id},
         {"$set": update_dict}
@@ -438,14 +494,7 @@ async def update_medicine(user_id: str, medicine_id: str, update: MedicineUpdate
         {"user_id": user_id, "medicine_id": medicine_id}, {"_id": 0}
     ).to_list(100)
     
-    weekly_pills = 0
-    for entry in schedule_entries:
-        day_doses = entry.get("day_doses", {})
-        for day, dose in day_doses.items():
-            pills = dose.get("whole", 0) + dose.get("half", 0) * 0.5
-            weekly_pills += pills
-    
-    daily_pills = weekly_pills / 7 if weekly_pills > 0 else 0
+    daily_pills = calculate_daily_pills(schedule_entries)
     
     status, days_until_empty = calculate_medicine_status(
         med["stock_count"], daily_pills, med["reminder_days_before"]
@@ -670,7 +719,7 @@ async def take_medicine(user_id: str, request: TakeMedicineRequest):
     
     await db.medicines.update_one(
         {"medicine_id": request.medicine_id},
-        {"$set": {"stock_count": new_stock}}
+        {"$set": {"stock_count": new_stock, "stock_updated_at": datetime.now(timezone.utc).isoformat()}}
     )
     
     log_id = str(uuid.uuid4())
