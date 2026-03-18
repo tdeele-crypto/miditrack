@@ -869,7 +869,7 @@ async def _build_pdf_bytes(user_id: str, week_offset: int = 0, lang: str = "da")
 
             row = [Paragraph(f"<b>{med_name}</b><br/><font size=7 color='grey'>{med_dosage}</font>", med_style)]
             for i, dk in enumerate(day_keys):
-                dose = (entry.get('day_doses') or {}).get(dk)
+                dose = (entry.get('day_doses') or entry.get('days') or {}).get(dk)
                 if not dose and entry.get('special_ordination') and _is_ordination_active(entry['special_ordination'], week_dates[i]):
                     dose = {'whole': 1, 'half': 0}
                 if dose and ((dose.get('whole', 0) or 0) > 0 or (dose.get('half', 0) or 0) > 0):
@@ -919,7 +919,7 @@ async def generate_schedule_pdf(user_id: str, week_offset: int = 0, lang: str = 
     return StreamingResponse(
         buffer,
         media_type="application/pdf",
-        headers={"Content-Disposition": f"inline; filename={filename}"}
+        headers={"Content-Disposition": f"attachment; filename={filename}"}
     )
 
 class EmailPdfRequest(BaseModel):
