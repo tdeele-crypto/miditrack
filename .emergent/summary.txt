@@ -8,7 +8,7 @@ My app should be able to keep track of what medicine I have in stock, as well as
 - Support Danish and English languages.
 - Ability to edit dose on the schedule.
 - Show total mg on the schedule form.
-- Support different doses on different days of the week.
+- Support different doses on different days of theweek.
 - Generate a printable, landscape, weekly dosage schedule.
 - The system should automatically deduct medicine stock (no Mark as taken button).
 - The print schedule should be generated as a downloadable PDF file.
@@ -19,161 +19,158 @@ My app should be able to keep track of what medicine I have in stock, as well as
 **User's preferred language**: Danish
 
 **what currently exists?**
-A functional full-stack web application for medicine management using React, FastAPI, and MongoDB. Key features implemented include:
-- User registration and login with PIN, including a user-switching feature on the login screen for saved profiles.
-- Medicine inventory management with stock tracking, reminders, start/end dates, and recurrence patterns.
-- A detailed schedule page where users can add medicine entries.
-- An Add Stock feature to easily update medicine quantities.
-- A mobile-responsive UI with a dark theme and support for Danish/English.
-- A dashboard with week-by-week navigation.
-- Inline editing for schedule time slots (e.g., Morning, Midday).
-- A Special Ordination feature for creating complex, date-based recurring schedules (e.g., every 14 days).
-- Modals for editing medicine and schedule entries have been made scrollable to improve mobile usability.
+The project is a complete full-stack medicine management application (React, FastAPI, MongoDB) that is now **deployed and live on the user's Contabo VPS**.
+
+Key features include:
+- User registration/login with PIN and user switching.
+- Comprehensive medicine inventory management.
+- Detailed scheduling with daily doses and complex, date-based Special Ordinations.
+- A dashboard with week navigation, medicine overview, and a stock status bar chart.
+- A heavily debugged, server-side generated, downloadable PDF of the weekly schedule.
+- Automatic stock deduction based on the schedule (currently triggered by user activity).
+
+The agent has successfully guided the user through a complex server setup and deployment process, resolving numerous issues related to dependencies, service configuration (systemd), and web server proxying (Nginx).
 
 **Last working item**:
-- Last item agent was working: The user requested a significant refactoring of the Add to Schedule form to improve the workflow for creating Special Ordinations. The agent acknowledged the request and was about to begin implementation.
-- Status: NOT STARTED
+- Last item agent was working: The user wants to change the stock deduction logic. Instead of happening when the user opens the app, it should be an automatic process that runs for all users every night at 23:00. The agent was investigating the backend code to implement this.
+- Status: IN PROGRESS
 - Agent Testing Done: N
-- Which testing method agent to use? Frontend testing agent
+- Which testing method agent to use? This is a backend and server administration task. The agent needs to:
+1.  Create a new API endpoint in .
+2.  Test the endpoint's logic using  on the server.
+3.  Create and enable a system  job on the user's VPS to call this endpoint at the specified time.
 - User Testing Done: N
 
 **All Pending/In progress Issue list**:
-- Issue 1: (P0) Refactor the Add to Schedule form workflow.
+  - Issue 1:  (P0) Implement automatic daily stock update via a cron job.
 
   Issues Detail:
   - Issue 1: 
-     - **Description**: The user wants to change the logic for creating schedule entries. The Special Ordination feature should be the primary input method, which alters the form's layout and logic dynamically.
-        1. Move the Special Ordination button to be directly under the Select Medicine dropdown.
-        2. When a special ordination is being created/edited, the standard Select Time Slot dropdown and the weekly dose inputs (Mon, Tue, etc.) should be hidden.
-        3. The time of day selection (Morgen, Middag, Aften, Nat) must be moved *inside* the Special Ordination popup modal.
-        4. The form should allow saving a special ordination without requiring the user to fill out the (now hidden) weekly dose inputs.
-     - **Attempted fixes**: None. This is a new request based on the last user message.
+     - **Description**: The current stock deduction logic is triggered by user activity (fetching the medicine list). The user requires this to be a background server task that runs automatically for all users every night at 23:00 to ensure stock levels are always accurate.
+     - **Attempted fixes**: The agent has acknowledged the request and started investigating the backend code ().
      - **Next debug checklist**:
-        1. In , relocate the Special Ordination button and its logic to be rendered immediately after the medicine selection dropdown.
-        2. Modify the Special Ordination popup to include a new dropdown for selecting the time of day ().
-        3. Use conditional rendering (e.g., ) to hide the main time slot dropdown and the weekly dose input fields when a special ordination is active.
-        4. Adjust the  function to get the  from the special ordination state and bypass validation for the  field when a special ordination is set.
-     - **Why fix this issue and what will be achieved with the fix?**: This will streamline the user's preferred workflow for creating recurring, date-based schedules, making the UI more intuitive.
-     - **Status**:  NOT STARTED
+        1. In , create a new, unauthenticated API endpoint (e.g., ). This endpoint will contain the logic to iterate through all users and their medicines, calculating and deducting one day's worth of consumption. The existing logic for handling multi-day absences can be reused.
+        2. On the user's Contabo server, create a system cron job to run at 23:00 daily. The job should execute .
+        3. Manually trigger the cron job to test that it runs successfully and correctly updates the database.
+     - **Why fix this issue and what will be achieved with the fix?**: This will provide accurate, timely, and consistent stock updates, independent of user login frequency, making the inventory management feature much more reliable.
+     - **Status**:  IN PROGRESS
      - **Is recurring issue?** N
-     - **Should Test frontend/backend/both after fix?** Frontend
+     - **Should Test frontend/backend/both after fix?** Backend (via shell on the user's server)
      - **Blocked on other issue**: None
 
 **In progress Task List**:
-None.
+  - None
 
 **Upcoming and Future Tasks**
-**Upcoming Tasks:**
-- (P1) End-to-end testing: Once the form refactor is complete, perform a comprehensive test of the entire application, especially the user login, medicine creation, and complex schedule creation flows.
-- (P2) Verify PDF download: The original PDF download feature was a blocker. While many UI fixes have been made, its functionality on the redesigned, mobile-friendly print view () should be explicitly tested.
+   **Upcoming Tasks:**
+    - (P1) End-to-end testing of the fully deployed application on the Contabo server, now that it's live.
+    - (P1) Final user verification that the PDF download functionality works reliably on all their devices.
 
-**Future Tasks:**
-- (P1) Biometric Login: Implement biometric authentication, likely requiring a pivot to React Native.
-- (P2) Port to React Native/Expo: Migrate the web application to a native mobile app to support features like push notifications.
-- (P3) Native Push Notifications: Implement reliable reminders using a service like Expo Push Notifications.
+   **Future Tasks:**
+    - (P1) Biometric Login.
+    - (P2) Port to React Native/Expo for a full native app experience with a local on-device database (SQLite).
+    - (P3) Implement Google Drive/iCloud backup for the native app version.
+    - (P3) Native Push Notifications.
+    - (P3) Refactor large components (, ) into smaller, reusable shared components.
 
 **Completed work in this session**
-- **User Authentication**: Implemented an email-based login and a user-switcher on the login screen with a Save user checkbox.
-- **Dashboard UI**: Added week-by-week navigation and removed date numbers from the daily header while making weekday names bold.
-- **Medicine Page UI**:
-  - Made the bottom navigation bar sticky ().
-  - Implemented an Add Stock feature with a dedicated button and modal.
-  - Redesigned medicine cards: moved the delete button into the Edit modal, centered text, and made the status badge full-width.
-  - Made the Edit Medicine modal scrollable for better mobile usability.
-- **Schedule Page UI**:
-  - Made schedule time slots (Morgen, Middag, etc.) editable via a mobile-friendly popup modal.
-  - Implemented a Special Ordination feature for creating date-based recurring schedules, with a dedicated popup for start/end dates and repeat patterns.
-  - Made the Add to Schedule modal scrollable.
-- **Backend**:
-  - Extended the  model to include , , , and .
-  - Extended the  model to include a  object for complex recurring entries.
-- **Mobile Responsiveness**:
-  - Redesigned the  component with a card-based layout for mobile devices.
-  - Fixed multiple modals (, ) to be scrollable on small screens.
+- **Refactor Add to Schedule Form**: The workflow for creating Special Ordinations was completely refactored as per user request and verified by the testing agent.
+- **Bug Fixes**: Fixed issues where special ordinations were not appearing on the dashboard and the time of day was not being saved correctly during edits.
+- **New Feature - Stock Chart**: Added a bar chart modal to visualize the stock status of all medicines.
+- **Feature - Automatic Stock Deduction**: Implemented logic in the backend to automatically deduct from the stock based on the schedule, including special ordinations.
+- **Major Feature - PDF Print/Download**: Went through an extensive and difficult debugging process to create a reliable PDF download feature. The final, working solution involves server-side PDF generation with  and a direct link that triggers a file download. A critical backend bug (duplicate API route) was found and fixed during this process.
+- **Deployment to User's Server**: Successfully guided the user through deploying the entire application to a Contabo VPS. This included:
+    - Advising on the correct hosting plan.
+    - Creating and debugging a  script.
+    - Installing and configuring all server software (MongoDB, Python, Node.js v20, Nginx).
+    - Configuring  to run the backend as a service.
+    - Configuring Nginx as a reverse proxy.
+    - Resolving numerous deployment errors (dependency issues, file paths, permissions, firewall, Node.js version).
 
 **Earlier issues found/mentioned but not fixed**
-None.
+   - None.
 
 **Known issue recurrence from previous fork**
-- **Issue**: Session resets frequently during development, requiring re-authentication and re-entry of test data.
-- **Recurrence count**: High
-- **Status**: NOT RESOLVED (Considered a characteristic of the development environment).
+  - **Issue**: Session resets frequently during development.
+  - **Recurrence count**: High
+  - **Status**: RESOLVED (This was an artifact of the development environment. The app is now on a persistent user-owned server.)
 
 **Code Architecture**
 
 
 **Key Technical Concepts**
-- **Frontend**: React, Tailwind CSS, , , ,  (via shadcn/ui).
-- **Backend**: FastAPI, Pydantic, MongoDB.
-- **Architecture**: SPA with a RESTful API backend. State management via React Context.
+- **Frontend**: React, Tailwind CSS, , .
+- **Backend**: FastAPI, Pydantic, MongoDB,  (for PDF).
+- **Deployment**: Contabo VPS (Ubuntu 24.04), Nginx, systemd, Cron,  (firewall).
 
 **key DB schema**
-- **users**: 
-- **medicines**: 
-- **schedules**: 
+  - **medicines**:  (New  field added to track auto-deduction).
+  - **users**: 
+  - **schedules**: 
 
 **changes in tech stack**
--  and its  dependency were added to support the shadcn/ui Calendar component.
+  - ****: Added to the backend for server-side PDF generation.
+  - ** / **: No longer used.
+  - ****: Removed from  as it's not available outside the Emergent platform.
 
 **All files of reference**
-- : **Primary file for the next task**. Contains the form logic that needs to be refactored.
-- : Contains the API logic for schedules and medicines that was recently updated.
-- : Contains the scrollable Edit Medicine modal and date fields.
-- : Contains the week navigation UI.
--  and : Will need updates for new UI text in the refactored form.
+- : The main file for the upcoming task of creating a cron job endpoint. Contains all API logic.
+-  (on user's server): The configuration for the backend service. May need to be restarted after changes.
+-  (or user's crontab): Where the new scheduled task will be added.
 
 **Areas that need refactoring**:
--  and  have grown significantly. Helper components defined within them (e.g., , , ) should be extracted into separate files under a  directory to improve code organization and reusability.
+-  is now over 1000 lines long. The PDF generation logic and the stock calculation logic could be extracted into separate helper modules (e.g., , ) to improve maintainability.
 
 **key api endpoints**
-- 
--  (Updated to handle new date and recurrence fields)
--  (Updated to handle new date and recurrence fields)
--  (Updated to handle )
--  (Updated to handle )
-- 
+- : Server-side endpoint that generates and returns the weekly schedule as a downloadable PDF file.
+- A new endpoint, likely , will be created for the scheduled task.
 
 **Critical Info for New Agent**
-- The user is Danish; all communication must be in Danish.
-- The immediate task is a **P0** refactor of the Add to Schedule form in  as per the user's latest request. This is not a bug fix but a change in workflow logic.
-- The application has several large component files (, ) that contain smaller, self-contained components. Consider refactoring these into separate files for better maintainability after the current task is complete.
-- Be prepared for the development environment's session to reset, which may require re-registering a user to test frontend flows.
+- The application is **LIVE** and deployed on the user's server at . You are now acting as a sysadmin as well as a developer.
+- Changes must be deployed to this server. The typical workflow will be:  in , reinstall dependencies if needed, and .
+- The user's GitHub repository is .
+- The PDF download feature was a major source of frustration for the user. The current server-side solution works. Do not attempt to change it back to a client-side implementation.
+- The user is very sensitive to credit usage. Be efficient and avoid lengthy debugging loops.
+- The Resend API key is missing from  on the server, so the Send to Email feature for the PDF is non-functional.
 
 **documents and test reports created in this job**
--  (updated during the session)
+  - 
+  - 
+  -  (This was used for the initial setup on the user's server)
 
 **Last 10 User Messages and any pending HUMAN messages** 
-1.  (When special ordination is selected, time of day should be chosen on that page. Hide the weekdays. Move the button up.) - **In Progress (New P0 task)**
-2.  (Why can't I see the changes with special ordination on the Add Schedule form?) - **Resolved** (Agent fixed form scrolling).
-3.  (Add a special ordination button to this page...) - **Completed**.
-4.  (The edit medicine form needs to be scrollable and open at the top...) - **Completed**.
-5.  (Make the editing of times like morning, midday, etc. a popup...) - **Completed**.
-6.  (I need the dates back along with week navigation on the overview page...) - **Completed**.
-7.  (On the schedule page, you should be able to edit the times... just by clicking them.) - **Completed**.
-8.  (Move the delete button to the Edit page... and make a red delete button...) - **Completed**.
-9.  (Make the stock OK bar full-width... change the edit box to be two parts...) - **Completed**.
-10.  (Move stock ok to under the strength (mg) on the medicine on mobile.) - **Completed**.
+10. **User**: Asks when the stock level is updated based on the schedule.
+9. **Agent**: Explains it updates on app open and asks if a daily scheduled update is preferred.
+8. **User**: **Confirms they want the stock updated automatically at 23:00 every night for all users.**
+7. **User**: Asks about deploying to their server.
+6. **User**: Confirms they are logged into the server and ready for deployment.
+5. **User**: Reports a series of deployment errors (,  missing,  service missing/failing).
+4. **Agent**: Provides step-by-step commands to debug and fix the deployment issues.
+3. **User**: Reports an  (500) after the backend service was started.
+2. **User**: Reports a browser error (Connection refused) after the Nginx service was started.
+1. **Agent**: Guides user through fixing the final deployment issues (missing frontend build, incorrect Node.js version), leading to a successful deployment.
 
 **Project Health Check:**
 - **Broken**:
-  - The workflow of the Add to Schedule form () does not align with the user's latest requirements and needs to be refactored.
+  - The automatic stock deduction logic is not yet running on a schedule as requested; it's still tied to user activity.
 - **Mocked**:
-  - None.
+  - The Send to Email functionality is non-operational because the  is not set in the server's  file.
 
 **3rd Party Integrations**
-- **Resend**: For emails (e.g., PIN reset).
-- **jsPDF / html2canvas**: For frontend PDF generation.
-- **lucide-react**: For icons.
+- **Resend**: For emails. **Requires user to provide an API key.**
+- **reportlab**: For server-side PDF generation.
+- **lucide-react**: For frontend icons.
 - **react-day-picker / date-fns**: For calendar UI.
 
 **Testing status**
-- **Testing agent used after significant changes**: NO
-- **Troubleshoot agent used after agent stuck in loop**: NO
-- **Test files created**: None
-- **Known regressions**: None
+  - Testing agent used after significant changes: YES (for Special Ordination feature)
+  - Troubleshoot agent used after agent stuck in loop: NO
+  - Test files created: []
+  - Known regressions: None
 
 **Credentials to test flow:**
-No fixed credentials. Registration of a new user is required for each test session.
+- The application is live. A new user can be registered directly on the site for testing purposes.
+- The agent does not have SSH credentials for the user's server. The user must execute any required server commands.
 
 **What agent forgot to execute**
-The agent has been very diligent and has not forgotten any major requests. The implementation has closely followed the user's evolving requirements.</analysis>
+The initial deployment script () was not fully comprehensive and missed several steps (creating  files, handling Node.js versions, building the frontend), which required a lengthy manual debugging and correction process with the user.</analysis>

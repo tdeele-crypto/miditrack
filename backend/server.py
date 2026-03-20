@@ -411,39 +411,11 @@ async def get_medicines(user_id: str):
     result = []
     
     for med in medicines:
-        # Calculate daily pills from schedule entries for this medicine
         schedule_entries = await db.schedule_entries.find(
             {"user_id": user_id, "medicine_id": med["medicine_id"]}, {"_id": 0}
         ).to_list(100)
         
         daily_pills = calculate_daily_pills(schedule_entries)
-        
-        # Auto-deduct stock based on days since last update
-        stock_count = med["stock_count"]
-        last_updated = med.get("stock_updated_at")
-        now = datetime.now(timezone.utc)
-        if daily_pills > 0 and last_updated:
-            try:
-                last_dt = datetime.fromisoformat(last_updated) if isinstance(last_updated, str) else last_updated
-                if last_dt.tzinfo is None:
-                    last_dt = last_dt.replace(tzinfo=timezone.utc)
-                days_passed = (now - last_dt).total_seconds() / 86400
-                if days_passed >= 1:
-                    full_days = int(days_passed)
-                    pills_consumed = daily_pills * full_days
-                    stock_count = max(0, stock_count - pills_consumed)
-                    await db.medicines.update_one(
-                        {"medicine_id": med["medicine_id"]},
-                        {"$set": {"stock_count": round(stock_count, 1), "stock_updated_at": now.isoformat()}}
-                    )
-            except Exception:
-                pass
-        elif daily_pills > 0 and not last_updated:
-            # Initialize stock_updated_at for existing medicines
-            await db.medicines.update_one(
-                {"medicine_id": med["medicine_id"]},
-                {"$set": {"stock_updated_at": now.isoformat()}}
-            )
         
         status, days_until_empty = calculate_medicine_status(
             med["stock_count"], daily_pills, med["reminder_days_before"]
@@ -787,6 +759,60 @@ async def undo_take_medicine(user_id: str, log_id: str):
     
     await db.medicine_logs.delete_one({"log_id": log_id})
     return {"success": True}
+
+# ============== CRON ENDPOINTS ==============
+
+@api_router.get("/cron/update-stocks")
+async def cron_update_stocks():
+    """Nightly cron job: deduct one day of medicine consumption for all users.
+    Called by system cron at 23:00. Handles catch-up if days were missed."""
+    now = datetime.now(timezone.utc)
+    users = await db.users.find({}, {"_id": 0, "user_id": 1}).to_list(10000)
+    total_updated = 0
+    errors = []
+
+    for user in users:
+        uid = user["user_id"]
+        medicines = await db.medicines.find({"user_id": uid}, {"_id": 0}).to_list(500)
+
+        for med in medicines:
+            try:
+                entries = await db.schedule_entries.find(
+                    {"user_id": uid, "medicine_id": med["medicine_id"]}, {"_id": 0}
+                ).to_list(100)
+                daily_pills = calculate_daily_pills(entries)
+                if daily_pills <= 0:
+                    continue
+
+                stock = med["stock_count"]
+                last_updated = med.get("stock_updated_at")
+
+                if last_updated:
+                    last_dt = datetime.fromisoformat(last_updated) if isinstance(last_updated, str) else last_updated
+                    if last_dt.tzinfo is None:
+                        last_dt = last_dt.replace(tzinfo=timezone.utc)
+                    days_passed = max(1, int((now - last_dt).total_seconds() / 86400))
+                else:
+                    days_passed = 1
+
+                pills_consumed = daily_pills * days_passed
+                new_stock = round(max(0, stock - pills_consumed), 1)
+
+                await db.medicines.update_one(
+                    {"medicine_id": med["medicine_id"]},
+                    {"$set": {"stock_count": new_stock, "stock_updated_at": now.isoformat()}}
+                )
+                total_updated += 1
+            except Exception as e:
+                errors.append(f"{med.get('name', med['medicine_id'])}: {str(e)}")
+
+    return {
+        "success": True,
+        "users_processed": len(users),
+        "medicines_updated": total_updated,
+        "errors": errors,
+        "timestamp": now.isoformat()
+    }
 
 # ============== HEALTH CHECK ==============
 
