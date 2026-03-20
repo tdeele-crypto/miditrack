@@ -777,6 +777,7 @@ async def cron_update_stocks():
     users = await db.users.find({}, {"_id": 0, "user_id": 1}).to_list(10000)
     total_updated = 0
     errors = []
+    user_alerts = {}  # {user_id: [{"name", "dosage", "stock", "unit", "days_left", "status"}]}
 
     for user in users:
         uid = user["user_id"]
@@ -810,13 +811,94 @@ async def cron_update_stocks():
                     {"$set": {"stock_count": new_stock, "stock_updated_at": now.isoformat()}}
                 )
                 total_updated += 1
+
+                # Track low-stock medicines for email notification
+                status, days_until_empty = calculate_medicine_status(
+                    new_stock, daily_pills, med["reminder_days_before"]
+                )
+                if status in ("yellow", "red"):
+                    unit = med.get("unit", "piller")
+                    if uid not in user_alerts:
+                        user_alerts[uid] = []
+                    user_alerts[uid].append({
+                        "name": med["name"],
+                        "dosage": med.get("dosage", ""),
+                        "stock": new_stock,
+                        "unit": unit,
+                        "days_left": days_until_empty,
+                        "status": status
+                    })
+
             except Exception as e:
                 errors.append(f"{med.get('name', med['medicine_id'])}: {str(e)}")
+
+    # Send email notifications for users with low-stock medicines
+    emails_sent = 0
+    if resend.api_key:
+        for uid, alerts in user_alerts.items():
+            try:
+                u = await db.users.find_one({"user_id": uid}, {"_id": 0})
+                if not u or not u.get("email"):
+                    continue
+                lang = u.get("language", "da")
+                is_da = lang == "da"
+
+                # Build HTML email
+                rows_html = ""
+                for a in alerts:
+                    color = "#ef4444" if a["status"] == "red" else "#f59e0b"
+                    status_text = ("Bestil snart" if a["status"] == "red" else "Lavt lager") if is_da else ("Order soon" if a["status"] == "red" else "Low stock")
+                    rows_html += f"""
+                    <tr>
+                        <td style="padding:8px 12px;border-bottom:1px solid #374151;">{a['name']}<br><span style="color:#9ca3af;font-size:12px;">{a['dosage']}</span></td>
+                        <td style="padding:8px 12px;border-bottom:1px solid #374151;text-align:center;">{a['stock']} {a['unit']}</td>
+                        <td style="padding:8px 12px;border-bottom:1px solid #374151;text-align:center;">{a['days_left']} {'dage' if is_da else 'days'}</td>
+                        <td style="padding:8px 12px;border-bottom:1px solid #374151;text-align:center;"><span style="color:{color};font-weight:bold;">{status_text}</span></td>
+                    </tr>"""
+
+                subject = "MediTrack - Lavt lager påmindelse" if is_da else "MediTrack - Low Stock Reminder"
+                th_medicine = "Medicin" if is_da else "Medicine"
+                th_stock = "Lager" if is_da else "Stock"
+                th_days = "Dage tilbage" if is_da else "Days left"
+                th_status = "Status" if is_da else "Status"
+                greeting = f"Hej {u.get('name', '')}," if is_da else f"Hi {u.get('name', '')},"
+                intro = "Følgende mediciner er ved at løbe tør:" if is_da else "The following medicines are running low:"
+
+                html = f"""
+                <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:20px;background:#111827;color:#e5e7eb;border-radius:12px;">
+                    <h2 style="color:#10b981;margin-bottom:4px;">MediTrack</h2>
+                    <p>{greeting}</p>
+                    <p>{intro}</p>
+                    <table style="width:100%;border-collapse:collapse;margin:16px 0;">
+                        <tr style="background:#1f2937;">
+                            <th style="padding:8px 12px;text-align:left;color:#10b981;">{th_medicine}</th>
+                            <th style="padding:8px 12px;text-align:center;color:#10b981;">{th_stock}</th>
+                            <th style="padding:8px 12px;text-align:center;color:#10b981;">{th_days}</th>
+                            <th style="padding:8px 12px;text-align:center;color:#10b981;">{th_status}</th>
+                        </tr>
+                        {rows_html}
+                    </table>
+                    <p style="color:#6b7280;font-size:12px;margin-top:20px;">{'Automatisk besked fra MediTrack' if is_da else 'Automatic message from MediTrack'}</p>
+                </div>
+                """
+
+                params = {
+                    "from": SENDER_EMAIL,
+                    "to": [u["email"]],
+                    "subject": subject,
+                    "html": html
+                }
+                await asyncio.to_thread(resend.Emails.send, params)
+                emails_sent += 1
+                logger.info(f"Low stock email sent to {u['email']} ({len(alerts)} medicines)")
+            except Exception as e:
+                logger.error(f"Failed to send stock alert email to user {uid}: {e}")
 
     return {
         "success": True,
         "users_processed": len(users),
         "medicines_updated": total_updated,
+        "emails_sent": emails_sent,
         "errors": errors,
         "timestamp": now.isoformat()
     }
