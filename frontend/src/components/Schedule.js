@@ -81,18 +81,16 @@ const EditableTimeSlot = ({ slot, onSave }) => {
 };
 
 const DayDoseSelector = ({ dayDoses, onChange, language, medicineDosage }) => {
-  const extractMg = (dosageStr) => {
+  const extractDosageInfo = (dosageStr) => {
     if (!dosageStr) return null;
     const match = dosageStr.match(/(\d+(?:[.,]\d+)?)\s*(mg|g|mcg|µg)/i);
     if (!match) return null;
-    let value = parseFloat(match[1].replace(',', '.'));
-    const unit = match[2].toLowerCase();
-    if (unit === 'g') value *= 1000;
-    if (unit === 'mcg' || unit === 'µg') value /= 1000;
-    return value;
+    const value = parseFloat(match[1].replace(',', '.'));
+    const unit = match[2];
+    return { value, unit };
   };
 
-  const mgPerPill = extractMg(medicineDosage);
+  const dosageInfo = extractDosageInfo(medicineDosage);
 
   const toggleDay = (dayKey) => {
     const newDoses = { ...dayDoses };
@@ -112,11 +110,11 @@ const DayDoseSelector = ({ dayDoses, onChange, language, medicineDosage }) => {
     onChange(newDoses);
   };
 
-  const calculateTotalMg = (dose) => {
-    if (!mgPerPill || !dose) return null;
+  const calculateTotalDosage = (dose) => {
+    if (!dosageInfo || !dose) return null;
     const pills = (dose.whole || 0) + (dose.half || 0) * 0.5;
-    const total = mgPerPill * pills;
-    return total % 1 === 0 ? total : total.toFixed(1);
+    const total = dosageInfo.value * pills;
+    return { value: total % 1 === 0 ? total : parseFloat(total.toFixed(1)), unit: dosageInfo.unit };
   };
 
   return (
@@ -124,7 +122,7 @@ const DayDoseSelector = ({ dayDoses, onChange, language, medicineDosage }) => {
       {DAYS.map(day => {
         const isActive = !!dayDoses[day.key];
         const dose = dayDoses[day.key];
-        const totalMg = calculateTotalMg(dose);
+        const totalDosage = calculateTotalDosage(dose);
         
         return (
           <div key={day.key} className={`rounded-xl border transition-all ${
@@ -140,8 +138,8 @@ const DayDoseSelector = ({ dayDoses, onChange, language, medicineDosage }) => {
                 }`}>
                   {language === 'da' ? day.da : day.en}
                 </div>
-                {isActive && totalMg && (
-                  <span className="text-emerald-400 font-medium">{totalMg}mg</span>
+                {isActive && totalDosage && (
+                  <span className="text-emerald-400 font-medium">{totalDosage.value}{totalDosage.unit}</span>
                 )}
               </div>
               {isActive && (
@@ -300,15 +298,14 @@ export const Schedule = () => {
   const formatDayDoses = (dayDoses, medicineDosage) => {
     if (!dayDoses || Object.keys(dayDoses).length === 0) return '';
     
-    const extractMg = (str) => {
+    const extractDosageInfo = (str) => {
       const match = str?.match(/(\d+(?:[.,]\d+)?)\s*(mg|g|mcg|µg)/i);
       if (!match) return null;
-      let val = parseFloat(match[1].replace(',', '.'));
-      if (match[2].toLowerCase() === 'g') val *= 1000;
-      return val;
+      const val = parseFloat(match[1].replace(',', '.'));
+      return { value: val, unit: match[2] };
     };
     
-    const mgPerPill = extractMg(medicineDosage);
+    const dosageInfo = extractDosageInfo(medicineDosage);
     const dayLabels = language === 'da' 
       ? { mon: 'Man', tue: 'Tir', wed: 'Ons', thu: 'Tor', fri: 'Fre', sat: 'Lør', sun: 'Søn' }
       : { mon: 'Mon', tue: 'Tue', wed: 'Wed', thu: 'Thu', fri: 'Fri', sat: 'Sat', sun: 'Sun' };
@@ -317,15 +314,15 @@ export const Schedule = () => {
     const doseGroups = {};
     Object.entries(dayDoses).forEach(([day, dose]) => {
       const pills = (dose.whole || 0) + (dose.half || 0) * 0.5;
-      const mg = mgPerPill ? mgPerPill * pills : null;
-      const key = mg ? `${mg}mg` : `${pills}p`;
+      const totalVal = dosageInfo ? dosageInfo.value * pills : null;
+      const key = totalVal ? `${totalVal % 1 === 0 ? totalVal : totalVal.toFixed(1)}${dosageInfo.unit}` : `${pills}p`;
       if (!doseGroups[key]) doseGroups[key] = [];
       doseGroups[key].push(dayLabels[day]);
     });
     
     return Object.entries(doseGroups)
       .map(([dose, days]) => `${days.join('/')}: ${dose}`)
-      .join(' • ');
+      .join(' · ');
   };
   
   // Group schedule by time slot

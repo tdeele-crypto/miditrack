@@ -132,6 +132,10 @@ export const translations = {
     error: "Fejl",
     success: "Succes",
     pills: "piller",
+    piller: "Piller",
+    stk: "Stk",
+    enheder: "Enheder",
+    unitLabel: "Enhed",
     days: "dage",
   },
   
@@ -268,6 +272,10 @@ export const translations = {
     error: "Error",
     success: "Success",
     pills: "pills",
+    piller: "Pills",
+    stk: "Pcs",
+    enheder: "Units",
+    unitLabel: "Unit",
     days: "days",
   }
 };

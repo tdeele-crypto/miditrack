@@ -23,15 +23,13 @@ export const Dashboard = () => {
   const dayKey = DayKeys[selectedDate.getDay()];
   const locale = language === 'da' ? da : enUS;
   
-  const extractMg = (dosageStr) => {
+  const extractDosageInfo = (dosageStr) => {
     if (!dosageStr) return null;
     const match = dosageStr.match(/(\d+(?:[.,]\d+)?)\s*(mg|g|mcg|µg)/i);
     if (!match) return null;
-    let value = parseFloat(match[1].replace(',', '.'));
-    const unit = match[2].toLowerCase();
-    if (unit === 'g') value *= 1000;
-    if (unit === 'mcg' || unit === 'µg') value /= 1000;
-    return value;
+    const value = parseFloat(match[1].replace(',', '.'));
+    const unit = match[2];
+    return { value, unit };
   };
 
   const isSpecialOrdinationActive = (ord, date) => {
@@ -69,8 +67,9 @@ export const Dashboard = () => {
       const pillsWhole = dayDose.whole || 0;
       const pillsHalf = dayDose.half || 0;
       const totalPills = pillsWhole + pillsHalf * 0.5;
-      const mgPerPill = extractMg(medicine?.dosage || entry.medicine_dosage);
-      const totalMg = mgPerPill ? mgPerPill * totalPills : null;
+      const dosageInfo = extractDosageInfo(medicine?.dosage || entry.medicine_dosage);
+      const totalDosage = dosageInfo ? dosageInfo.value * totalPills : null;
+      const dosageUnit = dosageInfo ? dosageInfo.unit : null;
       
       return {
         ...entry,
@@ -78,7 +77,8 @@ export const Dashboard = () => {
         pills_whole: pillsWhole,
         pills_half: pillsHalf,
         total_pills: totalPills,
-        total_mg: totalMg,
+        total_dosage: totalDosage,
+        dosage_unit: dosageUnit,
         is_special: !!entry.special_ordination
       };
     }).filter(e => e.medicine);
@@ -229,10 +229,10 @@ export const Dashboard = () => {
                           <p className="font-medium">{item.medicine?.name}</p>
                           <p className="text-xs text-zinc-500">{item.medicine?.dosage}</p>
                           <p className="text-sm text-emerald-400 font-semibold">
-                            {formatPillsDisplay(item.pills_whole, item.pills_half)} stk.
-                            {item.total_mg && (
+                            {formatPillsDisplay(item.pills_whole, item.pills_half)} {t(item.medicine?.unit || 'piller')}
+                            {item.total_dosage && (
                               <span className="text-zinc-400 font-normal ml-2">
-                                {item.total_mg % 1 === 0 ? item.total_mg : item.total_mg.toFixed(2)}mg
+                                {item.total_dosage % 1 === 0 ? item.total_dosage : item.total_dosage.toFixed(2)}{item.dosage_unit}
                               </span>
                             )}
                           </p>
@@ -300,7 +300,7 @@ export const Dashboard = () => {
                     <div key={med.medicine_id} data-testid={`chart-bar-${med.medicine_id}`}>
                       <div className="flex items-center justify-between mb-1">
                         <span className="text-sm font-medium text-white truncate mr-2">{med.name}</span>
-                        <span className={`text-sm font-bold ${textColor} shrink-0`}>{med.stock_count || 0} stk.</span>
+                        <span className={`text-sm font-bold ${textColor} shrink-0`}>{med.stock_count || 0} {t(med.unit || 'piller')}</span>
                       </div>
                       <div className="w-full h-5 bg-zinc-800 rounded-full overflow-hidden">
                         <div

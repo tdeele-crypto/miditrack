@@ -64,6 +64,7 @@ class PinResetConfirm(BaseModel):
 class MedicineCreate(BaseModel):
     name: str
     dosage: str
+    unit: str = "piller"  # piller, stk, enheder
     stock_count: int
     reminder_days_before: int = 7
     start_date: Optional[str] = None
@@ -74,6 +75,7 @@ class MedicineCreate(BaseModel):
 class MedicineUpdate(BaseModel):
     name: Optional[str] = None
     dosage: Optional[str] = None
+    unit: Optional[str] = None
     stock_count: Optional[float] = None
     reminder_days_before: Optional[int] = None
     start_date: Optional[str] = None
@@ -86,6 +88,7 @@ class MedicineResponse(BaseModel):
     user_id: str
     name: str
     dosage: str
+    unit: str
     stock_count: float
     reminder_days_before: int
     status: str
@@ -378,6 +381,7 @@ async def create_medicine(user_id: str, medicine: MedicineCreate):
         "user_id": user_id,
         "name": medicine.name,
         "dosage": medicine.dosage,
+        "unit": medicine.unit,
         "stock_count": medicine.stock_count,
         "reminder_days_before": medicine.reminder_days_before,
         "start_date": medicine.start_date,
@@ -394,6 +398,7 @@ async def create_medicine(user_id: str, medicine: MedicineCreate):
         user_id=user_id,
         name=medicine.name,
         dosage=medicine.dosage,
+        unit=medicine.unit,
         stock_count=medicine.stock_count,
         reminder_days_before=medicine.reminder_days_before,
         status=status,
@@ -426,6 +431,7 @@ async def get_medicines(user_id: str):
             user_id=med["user_id"],
             name=med["name"],
             dosage=med["dosage"],
+            unit=med.get("unit", "piller"),
             stock_count=med["stock_count"],
             reminder_days_before=med["reminder_days_before"],
             status=status,
@@ -477,6 +483,7 @@ async def update_medicine(user_id: str, medicine_id: str, update: MedicineUpdate
         user_id=med["user_id"],
         name=med["name"],
         dosage=med["dosage"],
+        unit=med.get("unit", "piller"),
         stock_count=med["stock_count"],
         reminder_days_before=med["reminder_days_before"],
         status=status,
@@ -933,14 +940,13 @@ async def _build_pdf_bytes(user_id: str, week_offset: int = 0, lang: str = "da")
             med = meds_map.get(entry.get('medicine_id'), {})
             med_name = med.get('name', entry.get('medicine_name', '?'))
             med_dosage = med.get('dosage', entry.get('medicine_dosage', ''))
-            mg_match = None
             import re
-            mg_search = re.search(r'(\d+(?:[.,]\d+)?)\s*(mg|g|mcg)', med_dosage, re.I)
-            mg_per_pill = None
-            if mg_search:
-                mg_per_pill = float(mg_search.group(1).replace(',', '.'))
-                if mg_search.group(2).lower() == 'g':
-                    mg_per_pill *= 1000
+            dosage_search = re.search(r'(\d+(?:[.,]\d+)?)\s*(mg|g|mcg|µg)', med_dosage, re.I)
+            dosage_per_pill = None
+            dosage_unit = None
+            if dosage_search:
+                dosage_per_pill = float(dosage_search.group(1).replace(',', '.'))
+                dosage_unit = dosage_search.group(2)
 
             row = [Paragraph(f"<b>{med_name}</b><br/><font size=7 color='grey'>{med_dosage}</font>", med_style)]
             for i, dk in enumerate(day_keys):
@@ -958,13 +964,13 @@ async def _build_pdf_bytes(user_id: str, week_offset: int = 0, lang: str = "da")
                     elif h > 0: pills_str = "½" if h == 1 else f"{h}×½"
                     else: pills_str = str(w)
                     total = w + h * 0.5
-                    mg_str = ''
-                    if mg_per_pill:
-                        mg_val = mg_per_pill * total
-                        mg_str = f"{int(mg_val)}mg" if mg_val == int(mg_val) else f"{mg_val:.1f}mg"
+                    dosage_str = ''
+                    if dosage_per_pill:
+                        dosage_val = dosage_per_pill * total
+                        dosage_str = f"{int(dosage_val)}{dosage_unit}" if dosage_val == int(dosage_val) else f"{dosage_val:.1f}{dosage_unit}"
                     cell_content = f"<b>{pills_str}</b>"
-                    if mg_str:
-                        cell_content += f"<br/><font size=7 color='#10b981'>{mg_str}</font>"
+                    if dosage_str:
+                        cell_content += f"<br/><font size=7 color='#10b981'>{dosage_str}</font>"
                     row.append(Paragraph(cell_content, cell_style))
                 else:
                     row.append(Paragraph("<font color='#cccccc'>-</font>", cell_style))

@@ -69,6 +69,7 @@ export const Medicines = () => {
   const [formData, setFormData] = useState({
     name: '',
     dosage: '',
+    unit: 'piller',
     stock_count: 30,
     reminder_days_before: 7,
     start_date: null,
@@ -83,6 +84,7 @@ export const Medicines = () => {
     setFormData({
       name: '',
       dosage: '',
+      unit: 'piller',
       stock_count: 30,
       reminder_days_before: 7,
       start_date: null,
@@ -99,6 +101,7 @@ export const Medicines = () => {
     setFormData({
       name: medicine.name,
       dosage: medicine.dosage,
+      unit: medicine.unit || 'piller',
       stock_count: medicine.stock_count,
       reminder_days_before: medicine.reminder_days_before,
       start_date: medicine.start_date || null,
@@ -231,7 +234,7 @@ export const Medicines = () => {
                     <Package className="w-3 h-3" />
                     {t('stockCount')}
                   </div>
-                  <p className="font-semibold">{medicine.stock_count} {t('pills')}</p>
+                  <p className="font-semibold">{medicine.stock_count} {t(medicine.unit || 'piller')}</p>
                 </div>
                 <div className="bg-zinc-800/50 rounded-xl p-3">
                   <div className="text-zinc-400 text-xs mb-1">{t('reminderDays')}</div>
@@ -303,6 +306,27 @@ export const Medicines = () => {
                   required
                   data-testid="medicine-dosage-input"
                 />
+              </div>
+              
+              <div>
+                <label className="block text-sm text-zinc-400 mb-2">{t('unitLabel')}</label>
+                <div className="grid grid-cols-3 gap-2">
+                  {['piller', 'stk', 'enheder'].map(u => (
+                    <button
+                      key={u}
+                      type="button"
+                      onClick={() => setFormData(prev => ({ ...prev, unit: u }))}
+                      className={`py-2.5 px-3 rounded-xl text-sm font-medium transition-all ${
+                        formData.unit === u
+                          ? 'bg-emerald-500 text-white'
+                          : 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700'
+                      }`}
+                      data-testid={`unit-${u}`}
+                    >
+                      {t(u)}
+                    </button>
+                  ))}
+                </div>
               </div>
               
               <div className="grid grid-cols-2 gap-4">
@@ -455,7 +479,7 @@ export const Medicines = () => {
         <div className="fixed inset-0 bg-black/70 flex items-center justify-center p-4 z-50" data-testid="add-stock-modal">
           <div className="glass-card w-full max-w-sm p-6 animate-fade-in">
             <h2 className="text-lg font-semibold mb-1">{t('addStock')}</h2>
-            <p className="text-sm text-zinc-400 mb-4">{showAddStock.name} — {showAddStock.stock_count} {t('pills')}</p>
+            <p className="text-sm text-zinc-400 mb-4">{showAddStock.name} — {showAddStock.stock_count} {t(showAddStock.unit || 'piller')}</p>
             <input
               type="number"
               value={addStockAmount}
