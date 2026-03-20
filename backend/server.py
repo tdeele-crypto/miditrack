@@ -182,8 +182,9 @@ def calculate_daily_pills(schedule_entries: list) -> float:
         ord_data = entry.get("special_ordination")
         if ord_data and ord_data.get("start_date"):
             repeat = ord_data.get("repeat", "daily")
-            # Default 1 pill per occurrence
-            pills_per_occurrence = 1
+            whole = ord_data.get("whole", 1) or 1
+            half = ord_data.get("half", 0) or 0
+            pills_per_occurrence = whole + half * 0.5
             if repeat == "daily":
                 special_daily_pills += pills_per_occurrence
             elif repeat == "weekly":
@@ -1037,7 +1038,8 @@ async def _build_pdf_bytes(user_id: str, week_offset: int = 0, lang: str = "da")
                     day_doses = entry['days']
                 dose = day_doses.get(dk)
                 if not dose and entry.get('special_ordination') and _is_ordination_active(entry['special_ordination'], week_dates[i]):
-                    dose = {'whole': 1, 'half': 0}
+                    ord = entry['special_ordination']
+                    dose = {'whole': ord.get('whole', 1) or 1, 'half': ord.get('half', 0) or 0}
                 if dose and ((dose.get('whole', 0) or 0) > 0 or (dose.get('half', 0) or 0) > 0):
                     w = dose.get('whole', 0) or 0
                     h = dose.get('half', 0) or 0

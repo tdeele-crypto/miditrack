@@ -233,7 +233,9 @@ export const Schedule = () => {
     start_date: null,
     end_date: null,
     repeat: 'daily',
-    time_of_day_id: ''
+    time_of_day_id: '',
+    whole: 1,
+    half: 0
   });
   
   const resetForm = () => {
@@ -247,7 +249,9 @@ export const Schedule = () => {
       start_date: null,
       end_date: null,
       repeat: 'daily',
-      time_of_day_id: ''
+      time_of_day_id: '',
+      whole: 1,
+      half: 0
     });
     setEditingEntry(null);
     setShowForm(false);
@@ -418,6 +422,8 @@ export const Schedule = () => {
                     {entry.special_ordination && (
                       <div className="mt-2 p-2 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-xs text-emerald-300">
                         <span className="font-medium">{t('specialOrdination')}: </span>
+                        {entry.special_ordination.whole || 1}{entry.special_ordination.half > 0 ? '½' : ''} {t(medicines.find(m => m.medicine_id === entry.medicine_id)?.unit || 'piller')}
+                        {' · '}
                         {entry.special_ordination.start_date && format(parseISO(entry.special_ordination.start_date), 'd. MMM', { locale })}
                         {entry.special_ordination.end_date && ` — ${format(parseISO(entry.special_ordination.end_date), 'd. MMM yyyy', { locale })}`}
                         {' · '}{t(entry.special_ordination.repeat)}
@@ -513,11 +519,12 @@ export const Schedule = () => {
                               <p>{t('ordTo')}: {format(parseISO(formData.special_ordination.end_date), 'd. MMM yyyy', { locale })}</p>
                             )}
                             <p>{t('ordRepeat')}: {t(formData.special_ordination.repeat)}</p>
+                            <p>{language === 'da' ? 'Antal' : 'Dose'}: {formData.special_ordination.whole || 1}{formData.special_ordination.half > 0 ? `½` : ''} {t(medicines.find(m => m.medicine_id === formData.medicine_id)?.unit || 'piller')}</p>
                           </div>
                           <button
                             type="button"
                             onClick={() => { 
-                              setOrdData({ ...formData.special_ordination, time_of_day_id: formData.slot_id }); 
+                              setOrdData({ ...formData.special_ordination, time_of_day_id: formData.slot_id, whole: formData.special_ordination.whole || 1, half: formData.special_ordination.half || 0 }); 
                               setShowOrdination(true); 
                             }}
                             className="mt-2 text-xs text-emerald-400 hover:underline"
@@ -530,7 +537,7 @@ export const Schedule = () => {
                         <button
                           type="button"
                           onClick={() => { 
-                            setOrdData({ start_date: null, end_date: null, repeat: 'daily', time_of_day_id: '' }); 
+                            setOrdData({ start_date: null, end_date: null, repeat: 'daily', time_of_day_id: '', whole: 1, half: 0 }); 
                             setShowOrdination(true); 
                           }}
                           className="w-full py-3 rounded-xl border-2 border-dashed border-zinc-700 text-zinc-400 hover:border-emerald-500/50 hover:text-emerald-400 transition-all flex items-center justify-center gap-2 text-sm"
@@ -612,10 +619,11 @@ export const Schedule = () => {
                           <p>{t('ordTo')}: {format(parseISO(formData.special_ordination.end_date), 'd. MMM yyyy', { locale })}</p>
                         )}
                         <p>{t('ordRepeat')}: {t(formData.special_ordination.repeat)}</p>
+                        <p>{language === 'da' ? 'Antal' : 'Dose'}: {formData.special_ordination.whole || 1}{formData.special_ordination.half > 0 ? `½` : ''} {t(editingEntry?.medicine ? medicines.find(m => m.medicine_id === editingEntry.medicine_id)?.unit || 'piller' : 'piller')}</p>
                       </div>
                       <button
                         type="button"
-                        onClick={() => { setOrdData({ ...formData.special_ordination, time_of_day_id: formData.slot_id || editingEntry?.slot_id || '' }); setShowOrdination(true); }}
+                        onClick={() => { setOrdData({ ...formData.special_ordination, time_of_day_id: formData.slot_id || editingEntry?.slot_id || '', whole: formData.special_ordination.whole || 1, half: formData.special_ordination.half || 0 }); setShowOrdination(true); }}
                         className="mt-2 text-xs text-emerald-400 hover:underline"
                       >
                         {t('edit')}
@@ -624,7 +632,7 @@ export const Schedule = () => {
                   ) : (
                     <button
                       type="button"
-                      onClick={() => { setOrdData({ start_date: null, end_date: null, repeat: 'daily', time_of_day_id: editingEntry?.slot_id || '' }); setShowOrdination(true); }}
+                      onClick={() => { setOrdData({ start_date: null, end_date: null, repeat: 'daily', time_of_day_id: editingEntry?.slot_id || '', whole: 1, half: 0 }); setShowOrdination(true); }}
                       className="w-full py-3 rounded-xl border-2 border-dashed border-zinc-700 text-zinc-400 hover:border-emerald-500/50 hover:text-emerald-400 transition-all flex items-center justify-center gap-2 text-sm"
                       data-testid="special-ordination-btn-edit"
                     >
@@ -720,7 +728,7 @@ export const Schedule = () => {
             </div>
             
             {/* Repeat */}
-            <div className="mb-6">
+            <div className="mb-4">
               <label className="block text-sm text-zinc-400 mb-2">
                 <Repeat className="w-3.5 h-3.5 inline mr-1" />
                 {t('ordRepeat')}
@@ -743,6 +751,55 @@ export const Schedule = () => {
                 ))}
               </div>
             </div>
+
+            {/* Dose per occurrence */}
+            <div className="mb-6">
+              <label className="block text-sm text-zinc-400 mb-2">
+                {language === 'da' ? 'Antal per gang' : 'Dose per occurrence'}
+              </label>
+              <div className="flex gap-3">
+                <div className="flex-1">
+                  <label className="block text-xs text-zinc-500 mb-1">
+                    {language === 'da' ? 'Hele' : 'Whole'}
+                  </label>
+                  <input
+                    type="number"
+                    value={ordData.whole}
+                    onChange={e => setOrdData(prev => ({ ...prev, whole: Math.max(0, parseInt(e.target.value) || 0) }))}
+                    className="input-field text-center py-2"
+                    min="0"
+                    data-testid="ord-whole-input"
+                  />
+                </div>
+                <div className="flex-1">
+                  <label className="block text-xs text-zinc-500 mb-1">
+                    {language === 'da' ? 'Halve' : 'Half'}
+                  </label>
+                  <input
+                    type="number"
+                    value={ordData.half}
+                    onChange={e => setOrdData(prev => ({ ...prev, half: Math.max(0, parseInt(e.target.value) || 0) }))}
+                    className="input-field text-center py-2"
+                    min="0"
+                    data-testid="ord-half-input"
+                  />
+                </div>
+              </div>
+              {(() => {
+                const selMed = medicines.find(m => m.medicine_id === (editingEntry?.medicine_id || formData.medicine_id));
+                if (!selMed) return null;
+                const match = selMed.dosage?.match(/(\d+(?:[.,]\d+)?)\s*(mg|g|mcg|µg)/i);
+                if (!match) return null;
+                const val = parseFloat(match[1].replace(',', '.'));
+                const unit = match[2];
+                const total = val * ((ordData.whole || 0) + (ordData.half || 0) * 0.5);
+                return (
+                  <p className="text-sm text-emerald-400 mt-2 text-center font-medium">
+                    {total % 1 === 0 ? total : total.toFixed(1)}{unit}
+                  </p>
+                );
+              })()}
+            </div>
             
             <div className="flex gap-3">
               <button
@@ -758,7 +815,9 @@ export const Schedule = () => {
                     special_ordination: { 
                       start_date: ordData.start_date, 
                       end_date: ordData.end_date, 
-                      repeat: ordData.repeat 
+                      repeat: ordData.repeat,
+                      whole: ordData.whole || 1,
+                      half: ordData.half || 0
                     },
                     slot_id: ordData.time_of_day_id
                   }));

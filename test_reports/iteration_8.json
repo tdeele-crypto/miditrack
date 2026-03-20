@@ -1,0 +1,84 @@
+{
+  "summary": "Comprehensive testing of special ordination dose feature (whole/half pills). All features working correctly: dose inputs in ordination modal, dose persisted to database, dose displayed on Dashboard and Schedule, backend stock calculation using stored dose, PDF generation working.",
+
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+
+  "passed_tests": [
+    "BACKEND: Existing schedule entry has whole=2, half=1 in special_ordination",
+    "BACKEND: Create schedule with custom dose (3 whole, 2 half) saves correctly",
+    "BACKEND: GET /api/schedule returns dose fields in special_ordination",
+    "BACKEND: PUT /api/schedule updates dose fields correctly",
+    "BACKEND: Stock calculation uses stored dose (2.5 pills/day for 2+1*0.5)",
+    "BACKEND: Medicine days_until_empty calculated correctly (Stock 95 / 2.5 pills = 38 days)",
+    "BACKEND: PDF endpoint returns valid PDF",
+    "BACKEND: Cron endpoint executes successfully (91 users processed, 23 medicines updated, 1 email sent)",
+    "BACKEND: Cron uses stored dose for daily pill calculation",
+    "FRONTEND: Dashboard shows '2½ Piller 125mcg' for special ordination entry",
+    "FRONTEND: Dashboard shows 'Special ordination' label on medicine items",
+    "FRONTEND: Schedule page shows 'Special ordination: 2½ Piller · 1. mar. — 31. dec. 2026 · Hver dag'",
+    "FRONTEND: Edit modal shows ordination summary with 'Antal: 2½ Piller'",
+    "FRONTEND: Ordination modal loads existing dose values (Hele: 2, Halve: 1)",
+    "FRONTEND: Ordination modal has whole/half input fields with data-testid",
+    "FRONTEND: Ordination modal shows calculated total dosage (125mcg)"
+  ],
+
+  "test_report_links": [
+    "/app/backend/tests/test_special_ordination_dose.py",
+    "/app/test_reports/pytest/special_ordination_dose_results.xml"
+  ],
+
+  "action_items": [],
+
+  "critical_code_review_comments": [
+    "Backend: calculate_daily_pills correctly uses ord_data.get('whole', 1) and ord_data.get('half', 0) as defaults",
+    "Backend: PDF generation line 1040 uses ord.get('whole', 1) and ord.get('half', 0) for dose",
+    "Backend: Schedule entry response includes special_ordination with whole/half fields",
+    "Frontend Schedule.js: ordData state properly includes whole/half fields initialized to 1/0",
+    "Frontend Schedule.js: ordination modal has ord-whole-input and ord-half-input with data-testid",
+    "Frontend Schedule.js: Save button correctly stores whole/half in special_ordination object",
+    "Frontend Dashboard.js: Line 66 uses entry.special_ordination.whole/half instead of hardcoded 1/0"
+  ],
+
+  "updated_files": [
+    "/app/backend/tests/test_special_ordination_dose.py"
+  ],
+
+  "success_rate": {
+    "backend": "100% (10/10 tests passed)",
+    "frontend": "100% (all features verified visually)"
+  },
+
+  "test_credentials": {
+    "test_email": "testunit@example.com",
+    "test_pin": "1234",
+    "test_user_id": "6a94f0b5-f130-411c-a084-d81f0f436a98"
+  },
+
+  "seed_data_creation": "Existing test schedule entry with special_ordination: {start_date: '2026-03-01', end_date: '2026-12-31', repeat: 'daily', whole: 2, half: 1}. Medicine: Levothyroxin 50mcg, unit: piller, stock: ~95",
+
+  "retest_needed": false,
+
+  "should_main_agent_self_test": false,
+
+  "context_for_next_testing_agent": "Special ordination dose feature fully implemented and verified. The ordination modal has whole/half inputs (data-testid: ord-whole-input, ord-half-input). Dose is stored as {whole: N, half: M} in special_ordination object. Dashboard shows dose as '2½ Piller' format. Schedule list shows 'Special ordination: 2½ Piller · date range · repeat'. Stock calculation uses stored dose correctly. PDF generation uses stored dose. Cron endpoint working with email notifications.",
+
+  "features_verified": {
+    "ordination_form_dose_inputs": "PASS - Hele/Halve inputs visible with correct data-testid",
+    "dose_saved_to_database": "PASS - whole=2, half=1 persisted correctly",
+    "dashboard_shows_correct_dose": "PASS - Shows '2½ Piller 125mcg'",
+    "schedule_list_shows_dose": "PASS - Shows 'Special ordination: 2½ Piller'",
+    "backend_calculate_daily_pills_uses_stored_dose": "PASS - Uses 2+1*0.5=2.5 pills/day",
+    "pdf_generation_uses_stored_dose": "PASS - PDF endpoint returns valid PDF",
+    "editing_loads_dose_values": "PASS - Modal loads Hele=2, Halve=1",
+    "cron_email_notification": "PASS - Sent 1 email for low-stock medicines"
+  }
+}

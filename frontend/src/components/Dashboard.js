@@ -63,7 +63,7 @@ export const Dashboard = () => {
     
     const medicines_for_slot = entries.map(entry => {
       const medicine = medicines.find(m => m.medicine_id === entry.medicine_id);
-      const dayDose = entry.day_doses?.[dayKey] || (entry.special_ordination ? { whole: 1, half: 0 } : { whole: 1, half: 0 });
+      const dayDose = entry.day_doses?.[dayKey] || (entry.special_ordination ? { whole: entry.special_ordination.whole || 1, half: entry.special_ordination.half || 0 } : { whole: 1, half: 0 });
       const pillsWhole = dayDose.whole || 0;
       const pillsHalf = dayDose.half || 0;
       const totalPills = pillsWhole + pillsHalf * 0.5;
