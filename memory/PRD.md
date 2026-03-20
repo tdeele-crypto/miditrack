@@ -1,71 +1,71 @@
 # MediTrack - Product Requirements Document
 
 ## Original Problem Statement
-Medicine management app to track medicine stock, create weekly dosage schedules, set reorder reminders with status indicators, and support PIN/biometric login. Must support Danish and English.
+Medicine management app that tracks stock, weekly schedules with dosing times (Morning, Noon, Evening, Night), expiry status indicators, stock reminders, PIN/biometric login, and email-based PIN reset.
+
+## User Personas
+- Primary: Danish-speaking users managing multiple medications
+- Needs: Reliable stock tracking, printable schedules, multi-device access
 
 ## Core Requirements
-- PIN-code authentication with email-based reset
-- Medicine inventory tracking (name, dosage, stock, reminders)
-- Weekly schedule with different doses per day and time of day (Morning, Noon, Evening, Night)
-- Status indicators (green/yellow/red) for medicine stock levels
-- Downloadable PDF of weekly schedule (landscape)
+- PIN-based authentication with email reset
+- Medicine inventory with stock tracking & expiry indicators
+- Weekly schedule with time-of-day slots and per-day dosing
+- Special ordinations (date-based recurring schedules)
+- Downloadable PDF weekly schedule (server-side, reportlab)
+- Automatic nightly stock deduction (cron at 23:00)
 - Dark theme, Danish/English language support
-- Automatic stock deduction (no "mark as taken" button)
-- User switching on login screen with "Save user" checkbox
+- Medicine unit types: Piller, Stk, Enheder
+- Dosage units preserved as-is (mg, mcg, g) everywhere
+
+## Tech Stack
+- Frontend: React, Tailwind CSS, Shadcn/UI, lucide-react, react-i18next
+- Backend: FastAPI, Pydantic, MongoDB (motor), reportlab (PDF)
+- Deployment: Contabo VPS (Ubuntu 24.04), Nginx, systemd, cron
+- Email: Resend API
 
 ## Architecture
-- **Frontend**: React + Tailwind CSS + Shadcn UI
-- **Backend**: FastAPI + MongoDB
-- **PDF**: jsPDF (client-side generation)
-- **i18n**: Custom translation system (da/en)
-
-## What's Been Implemented (as of March 2026)
-- [x] User registration with PIN (4-digit)
-- [x] Email-based login (POST /api/auth/login-email)
-- [x] User switching: saved users on login screen, click to enter PIN
-- [x] "Gem bruger" (Save user) checkbox
-- [x] PIN reset via email (Resend integration)
-- [x] Medicine CRUD with stock tracking and status indicators
-- [x] Weekly schedule with per-day dosing
-- [x] Time slots (Morning, Noon, Evening, Night)
-- [x] Dashboard with week overview and week navigation
-- [x] Medicine form with start date, cancel date, end date and repeat interval
-- [x] **Refactored Schedule form with Special Ordination workflow:**
-  - Special Ordination button placed directly under medicine dropdown
-  - Time-of-day selection (Morgen, Middag, Aften, Nat) inside the ordination popup
-  - Normal time slot dropdown and day-dose inputs hidden when ordination is active
-  - Can save schedule entry with only special ordination (no day-doses required)
-  - Time-of-day persists correctly when editing existing ordinations
-- [x] **Dashboard shows special ordinations** on their active dates based on start_date, end_date, and repeat pattern (daily/weekly/biweekly/monthly)
-- [x] Printable weekly schedule view (mobile-responsive card layout + desktop table)
-- [x] PDF download (jsPDF, landscape A4)
-- [x] Dark theme
-- [x] Danish/English language support
-- [x] Settings page (profile, language, logout)
+```
+/opt/meditrack/ (production)
+/app/ (development)
+├── backend/server.py (all routes, models, PDF gen, cron)
+├── frontend/src/
+│   ├── components/ (Dashboard, Medicines, Schedule, PrintSchedule, Settings, AuthScreen, Navigation)
+│   ├── context/AppContext.js
+│   └── i18n/translations.js
+```
 
 ## Key API Endpoints
-- POST /api/auth/register
-- POST /api/auth/login
-- POST /api/auth/login-email
-- POST /api/auth/request-pin-reset
-- POST /api/auth/confirm-pin-reset
-- GET/POST /api/medicines/{user_id}
-- PUT/DELETE /api/medicines/{user_id}/{medicine_id}
-- GET/POST /api/schedule/{user_id}
-- PUT/DELETE /api/schedule/{user_id}/{entry_id}
-- GET /api/timeslots/{user_id}
+- POST /api/auth/register, /api/auth/login, /api/auth/login-email
+- POST /api/auth/request-pin-reset, /api/auth/confirm-pin-reset
+- CRUD /api/medicines/{user_id}
+- CRUD /api/schedule/{user_id}
+- GET /api/schedule/{user_id}/pdf
+- POST /api/schedule/{user_id}/email-pdf
+- GET /api/cron/update-stocks (unauthenticated, for cron job)
 
-## DB Collections
-- users: user_id, name, email, pin_hash, language
-- medicines: medicine_id, user_id, name, dosage, stock_count, reminder_days_before
-- schedule_entries: entry_id, user_id, medicine_id, slot_id, day_doses, special_ordination
-- time_slots: slot_id, user_id, name, time, order
-- pin_resets: email, reset_code, expires_at, used
+## DB Schema
+- users: { user_id, pin_hash, name, email, language, created_at }
+- medicines: { medicine_id, user_id, name, dosage, unit, stock_count, reminder_days_before, stock_updated_at, ... }
+- schedule_entries: { entry_id, user_id, medicine_id, slot_id, day_doses, special_ordination }
+- time_slots: { slot_id, user_id, name, time, order }
 
-## Backlog
-- P1: End-to-end regression testing of entire app
-- P1: Verify PDF download functionality
-- P1: Biometric login (WebAuthn API for web, or native when ported)
-- P2: Port to React Native/Expo
-- P2: Native push notifications for reminders
-- P3: Extract helper components from Schedule.js/Medicines.js into shared/ directory
+## What's Implemented
+- Full auth system (PIN, email login, reset)
+- Medicine CRUD with unit types (piller/stk/enheder)
+- Schedule with per-day dosing and special ordinations
+- Dashboard with week navigation
+- PDF download (server-side reportlab)
+- Stock chart modal
+- Automatic stock deduction cron endpoint
+- Resend email integration (API key configured)
+- Dosage units preserved as-is everywhere
+- Deployed on Contabo VPS
+
+## Pending
+- P1: Deploy cron job on Contabo server (user must run commands)
+- P1: Biometric login
+- P2: React Native/Expo port
+- P3: Google Drive/iCloud backup
+- P3: Native push notifications
+- P3: Refactor large components
