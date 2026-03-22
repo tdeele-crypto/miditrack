@@ -310,7 +310,7 @@ export const Dashboard = () => {
                       </div>
                       <div className="flex justify-between mt-0.5">
                         <span className="text-[10px] text-zinc-500">{med.dosage}</span>
-                        <span className="text-[10px] text-zinc-500">
+                        <span className="text-[10px] text-white">
                           {med.days_until_empty != null ? `${med.days_until_empty} ${language === 'da' ? 'dage' : 'days'}` : ''}
                         </span>
                       </div>
