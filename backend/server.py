@@ -158,9 +158,9 @@ def calculate_medicine_status(stock_count: int, daily_pills: float, reminder_day
     
     days_until_empty = int(stock_count / daily_pills) if daily_pills > 0 else 999
     
-    if days_until_empty <= reminder_days:
+    if days_until_empty <= 7:
         return "red", days_until_empty
-    elif days_until_empty <= reminder_days + 14:
+    elif days_until_empty <= reminder_days:
         return "yellow", days_until_empty
     else:
         return "green", days_until_empty
