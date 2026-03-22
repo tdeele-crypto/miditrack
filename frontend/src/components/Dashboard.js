@@ -292,8 +292,10 @@ export const Dashboard = () => {
             ) : (
               <div className="space-y-3">
                 {medicines.map(med => {
-                  const maxStock = Math.max(...medicines.map(m => m.stock_count || 0), 1);
-                  const pct = Math.min(((med.stock_count || 0) / maxStock) * 100, 100);
+                  const daysLeft = med.days_until_empty ?? 999;
+                  const reminder = med.reminder_days_before || 7;
+                  // 100% if not in reminder zone, then count down from reminder_days to 0
+                  const pct = daysLeft > reminder ? 100 : Math.min((daysLeft / reminder) * 100, 100);
                   const barColor = med.status === 'green' ? 'bg-emerald-500' : med.status === 'yellow' ? 'bg-amber-500' : 'bg-red-500';
                   const textColor = med.status === 'green' ? 'text-emerald-400' : med.status === 'yellow' ? 'text-amber-400' : 'text-red-400';
                   return (
